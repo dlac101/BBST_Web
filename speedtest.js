@@ -23,11 +23,18 @@ function gradeColor(g) {
 }
 
 function gradeColorRaw(g) {
-  return g === 'A' ? '#34d399' : g === 'B' ? '#22d3ee' : g === 'C' ? '#f59e0b' : '#ef4444';
+  if (isDarkTheme()) {
+    return g === 'A' ? '#34d399' : g === 'B' ? '#22d3ee' : g === 'C' ? '#f59e0b' : '#ef4444';
+  }
+  // Desaturated for light theme
+  return g === 'A' ? '#10b981' : g === 'B' ? '#0ea5c9' : g === 'C' ? '#d97706' : '#dc2626';
 }
 
 function gradeTint(g) {
-  return g === 'A' ? 'rgba(52,211,153,0.12)' : g === 'B' ? 'rgba(34,211,238,0.12)' : g === 'C' ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
+  if (isDarkTheme()) {
+    return g === 'A' ? 'rgba(52,211,153,0.12)' : g === 'B' ? 'rgba(34,211,238,0.12)' : g === 'C' ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
+  }
+  return g === 'A' ? 'rgba(16,185,129,0.12)' : g === 'B' ? 'rgba(14,165,201,0.12)' : g === 'C' ? 'rgba(217,119,6,0.12)' : 'rgba(220,38,38,0.12)';
 }
 
 function formatSpeed(mbps) {
@@ -721,7 +728,7 @@ function renderSparkline() {
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = 'rgba(34,211,238,0.7)';
+  ctx.strokeStyle = isDarkTheme() ? 'rgba(34,211,238,0.7)' : 'rgba(14,165,201,0.8)';
   ctx.lineWidth = 2;
   ctx.stroke();
 
@@ -730,7 +737,7 @@ function renderSparkline() {
   ctx.lineTo(lastX, plotT + plotH);
   ctx.lineTo(plotL, plotT + plotH);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(34,211,238,0.08)';
+  ctx.fillStyle = isDarkTheme() ? 'rgba(34,211,238,0.08)' : 'rgba(14,165,201,0.12)';
   ctx.fill();
 
   // Dots with grade color + store coordinates for hover
