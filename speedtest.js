@@ -137,8 +137,8 @@ const MOCK = {
       host: 'speedtest-atl.adtran.net',
       idle_avg: 8.2, download_avg: 14.6, upload_avg: 20.1,
       idle_jitter: 1.1, download_jitter: 3.4, upload_jitter: 5.2,
-      download_bufferbloat_grade: 'D',  // TEMP: faking bad grade for testing
-      upload_bufferbloat_grade: 'C'   // TEMP: faking bad grade for testing
+      download_bufferbloat_grade: 'A',
+      upload_bufferbloat_grade: 'B'
     },
     server_selection: {
       servers: [
