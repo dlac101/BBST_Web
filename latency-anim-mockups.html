@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Latency Animation Mockups</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0b1120;
+    color: #e2e8f0;
+    font-family: 'Inter', -apple-system, sans-serif;
+    padding: 32px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 24px; color: #94a3b8; letter-spacing: 0.05em; text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1200px; margin: 0 auto; }
+  .mockup {
+    background: #131b2e;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 320px;
+  }
+  .mockup h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #22d3ee;
+    margin-bottom: 4px;
+  }
+  .mockup p {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 16px;
+  }
+  canvas { display: block; width: 100%; height: 240px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+</style>
+</head>
+<body>
+<h1>Latency Phase Animation Options</h1>
+<div class="grid">
+  <div class="mockup">
+    <h2>Option 1: Ping-Pong Dot</h2>
+    <p>Dot bounces between You and Server. Each trip shows a latency reading.</p>
+    <canvas id="c1"></canvas>
+  </div>
+  <div class="mockup">
+    <h2>Option 2: Multi-Server Ping Race</h2>
+    <p>Three server candidates race. Fastest wins selection.</p>
+    <canvas id="c2"></canvas>
+  </div>
+  <div class="mockup">
+    <h2>Option 3: Radar / Sonar Pulse</h2>
+    <p>Ring pulses out and bounces back. Diameter = latency.</p>
+    <canvas id="c3"></canvas>
+  </div>
+  <div class="mockup">
+    <h2>Option 4: Packet Hop Trail</h2>
+    <p>Dot hops through network path, bounces back with trail.</p>
+    <canvas id="c4"></canvas>
+  </div>
+</div>
+
+<script>
+// Shared utilities
+function setupCanvas(id) {
+  var c = document.getElementById(id);
+  var dpr = window.devicePixelRatio || 1;
+  var rect = c.getBoundingClientRect();
+  c.width = rect.width * dpr;
+  c.height = rect.height * dpr;
+  var ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { c: c, ctx: ctx, w: rect.width, h: rect.height };
+}
+
+var CYAN = '#22d3ee';
+var MAGENTA = '#e879f9';
+var GREEN = '#34d399';
+var AMBER = '#fbbf24';
+var MUTED = '#475569';
+var DIM = '#1e293b';
+
+// ============================================================
+// OPTION 1: Ping-Pong Dot
+// ============================================================
+(function() {
+  var s = setupCanvas('c1');
+  var ctx = s.ctx, w = s.w, h = s.h;
+  var padX = 60, dotY = h * 0.45;
+  var x0 = padX, x1 = w - padX;
+  var cycleDur = 1200; // ms per round-trip
+  var totalCycles = 4;
+  var totalDur = cycleDur * totalCycles + 1500; // + settle pause
+  var latencies = [8.2, 7.9, 8.5, 8.1];
+  var startTime = performance.now();
+
+  function draw(now) {
+    var elapsed = (now - startTime) % totalDur;
+    ctx.clearRect(0, 0, w, h);
+
+    // Labels
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('YOU', x0, dotY - 40);
+    ctx.fillText('SERVER', x1, dotY - 40);
+
+    // Endpoints
+    ctx.fillStyle = CYAN;
+    ctx.beginPath(); ctx.arc(x0, dotY, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = GREEN;
+    ctx.beginPath(); ctx.arc(x1, dotY, 6, 0, Math.PI * 2); ctx.fill();
+
+    // Dashed line
+    ctx.save();
+    ctx.setLineDash([4, 6]);
+    ctx.strokeStyle = DIM;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x0 + 12, dotY); ctx.lineTo(x1 - 12, dotY); ctx.stroke();
+    ctx.restore();
+
+    // Determine current cycle and position
+    var cycleIdx = Math.floor(elapsed / cycleDur);
+    var cycleT = (elapsed % cycleDur) / cycleDur;
+
+    if (cycleIdx < totalCycles) {
+      // Animate dot: 0->0.5 = going right, 0.5->1 = coming back
+      var t, goingRight;
+      if (cycleT < 0.5) {
+        t = cycleT * 2; // 0-1
+        goingRight = true;
+      } else {
+        t = (cycleT - 0.5) * 2; // 0-1
+        goingRight = false;
+      }
+      // Ease in-out
+      var ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      var dotX;
+      if (goingRight) {
+        dotX = x0 + (x1 - x0) * ease;
+      } else {
+        dotX = x1 - (x1 - x0) * ease;
+      }
+
+      // Glow trail
+      var grad = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, 20);
+      grad.addColorStop(0, 'rgba(34, 211, 238, 0.6)');
+      grad.addColorStop(1, 'rgba(34, 211, 238, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(dotX, dotY, 20, 0, Math.PI * 2); ctx.fill();
+
+      // Dot
+      ctx.fillStyle = CYAN;
+      ctx.beginPath(); ctx.arc(dotX, dotY, 5, 0, Math.PI * 2); ctx.fill();
+
+      // Show completed latency readings
+      for (var i = 0; i < cycleIdx; i++) {
+        ctx.font = '600 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.7)';
+        ctx.fillText(latencies[i].toFixed(1) + ' ms', w / 2, dotY + 36 + i * 20);
+      }
+      // Current cycle label
+      if (!goingRight && cycleT > 0.85) {
+        var alpha = (cycleT - 0.85) / 0.15;
+        ctx.font = '600 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(34, 211, 238, ' + alpha + ')';
+        ctx.fillText(latencies[cycleIdx].toFixed(1) + ' ms', w / 2, dotY + 36 + cycleIdx * 20);
+      }
+    } else {
+      // Settle phase: show average
+      for (var i = 0; i < totalCycles; i++) {
+        ctx.font = '600 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.4)';
+        ctx.fillText(latencies[i].toFixed(1) + ' ms', w / 2, dotY + 36 + i * 20);
+      }
+      var settleT = (elapsed - cycleDur * totalCycles) / 1500;
+      if (settleT > 0.3) {
+        var alpha = Math.min(1, (settleT - 0.3) / 0.3);
+        ctx.font = '700 18px monospace';
+        ctx.fillStyle = 'rgba(34, 211, 238, ' + alpha + ')';
+        ctx.fillText('Avg: 8.2 ms', w / 2, dotY - 8);
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+
+// ============================================================
+// OPTION 2: Multi-Server Ping Race
+// ============================================================
+(function() {
+  var s = setupCanvas('c2');
+  var ctx = s.ctx, w = s.w, h = s.h;
+  var padX = 60;
+  var x0 = padX, x1 = w - padX;
+
+  var servers = [
+    { name: 'Atlanta', latency: 8.2, color: CYAN, y: 0 },
+    { name: 'New York', latency: 12.4, color: MAGENTA, y: 0 },
+    { name: 'Washington', latency: 15.1, color: AMBER, y: 0 }
+  ];
+  var laneH = 44;
+  var startY = h * 0.25;
+  servers.forEach(function(srv, i) { srv.y = startY + i * laneH; });
+
+  // Each server does 2 round-trips at its own speed
+  var maxLat = 15.1;
+  var baseCycle = 1000; // base cycle for fastest
+  var totalCycles = 2;
+  var raceDur = baseCycle * (maxLat / 8.2) * totalCycles + 1500;
+  var startTime = performance.now();
+
+  function draw(now) {
+    var elapsed = (now - startTime) % raceDur;
+    ctx.clearRect(0, 0, w, h);
+
+    // "You" label
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('YOU', x0, startY - 24);
+
+    // Endpoint dot
+    ctx.fillStyle = CYAN;
+    ctx.beginPath(); ctx.arc(x0, startY, 4, 0, Math.PI * 2); ctx.fill();
+
+    servers.forEach(function(srv, idx) {
+      var cycleDur = baseCycle * (srv.latency / 8.2);
+      var srvTotalDur = cycleDur * totalCycles;
+
+      // Lane line
+      ctx.save();
+      ctx.setLineDash([3, 5]);
+      ctx.strokeStyle = DIM;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x0 + 10, srv.y); ctx.lineTo(x1 - 10, srv.y); ctx.stroke();
+      ctx.restore();
+
+      // Server label (right side)
+      ctx.font = '500 10px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText(srv.name, x1 + 8, srv.y + 4);
+
+      // Server endpoint
+      ctx.fillStyle = srv.color;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.arc(x1, srv.y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+
+      if (elapsed < srvTotalDur) {
+        var cycleT = (elapsed % cycleDur) / cycleDur;
+        var t, goingRight;
+        if (cycleT < 0.5) {
+          t = cycleT * 2;
+          goingRight = true;
+        } else {
+          t = (cycleT - 0.5) * 2;
+          goingRight = false;
+        }
+        var ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        var dotX = goingRight ? x0 + (x1 - x0) * ease : x1 - (x1 - x0) * ease;
+
+        // Glow
+        var grad = ctx.createRadialGradient(dotX, srv.y, 0, dotX, srv.y, 14);
+        grad.addColorStop(0, srv.color.replace(')', ', 0.5)').replace('rgb', 'rgba').replace('#', ''));
+        // Simpler approach
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = srv.color;
+        ctx.beginPath(); ctx.arc(dotX, srv.y, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = srv.color;
+        ctx.beginPath(); ctx.arc(dotX, srv.y, 4, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // Done: show latency result
+        var doneT = Math.min(1, (elapsed - srvTotalDur) / 400);
+        ctx.globalAlpha = doneT;
+        ctx.font = '600 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = srv.color;
+        ctx.fillText(srv.latency.toFixed(1) + ' ms', (x0 + x1) / 2, srv.y + 4);
+        ctx.globalAlpha = 1;
+      }
+    });
+
+    // Winner highlight after all done
+    var allDone = baseCycle * (maxLat / 8.2) * totalCycles;
+    if (elapsed > allDone + 600) {
+      var winT = Math.min(1, (elapsed - allDone - 600) / 500);
+      // Highlight Atlanta (winner)
+      ctx.save();
+      ctx.strokeStyle = CYAN;
+      ctx.globalAlpha = winT * 0.6;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.roundRect(x0 - 8, servers[0].y - 14, x1 - x0 + 16, 28, 6);
+      ctx.stroke();
+      ctx.globalAlpha = winT;
+      ctx.font = '700 11px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = CYAN;
+      ctx.fillText('SELECTED', x1 - 4, servers[0].y - 18);
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+
+// ============================================================
+// OPTION 3: Radar / Sonar Pulse
+// ============================================================
+(function() {
+  var s = setupCanvas('c3');
+  var ctx = s.ctx, w = s.w, h = s.h;
+  var cx = w / 2, cy = h * 0.45;
+  var maxR = Math.min(w, h) * 0.35;
+  var cycleDur = 1400;
+  var totalCycles = 4;
+  var totalDur = cycleDur * totalCycles + 1200;
+  var latencies = [8.2, 7.9, 8.5, 8.1];
+  var maxLatency = 50; // ms scale
+  var startTime = performance.now();
+
+  function draw(now) {
+    var elapsed = (now - startTime) % totalDur;
+    ctx.clearRect(0, 0, w, h);
+
+    // Concentric reference rings
+    for (var i = 1; i <= 4; i++) {
+      var r = maxR * (i / 4);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = DIM;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Scale labels
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#334155';
+    ctx.textAlign = 'left';
+    for (var i = 1; i <= 4; i++) {
+      ctx.fillText(Math.round(maxLatency * i / 4) + 'ms', cx + maxR * (i / 4) + 4, cy + 3);
+    }
+
+    // Center dot (you)
+    ctx.fillStyle = CYAN;
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '600 10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('YOU', cx, cy + 20);
+
+    var cycleIdx = Math.floor(elapsed / cycleDur);
+    var cycleT = (elapsed % cycleDur) / cycleDur;
+
+    if (cycleIdx < totalCycles) {
+      var latency = latencies[cycleIdx];
+      var targetR = maxR * (latency / maxLatency);
+
+      var ringR, alpha;
+      if (cycleT < 0.4) {
+        // Expanding out
+        var t = cycleT / 0.4;
+        var ease = 1 - Math.pow(1 - t, 3);
+        ringR = targetR * ease;
+        alpha = 1 - t * 0.3;
+      } else if (cycleT < 0.5) {
+        // Brief hold at target
+        ringR = targetR;
+        alpha = 0.7;
+      } else if (cycleT < 0.85) {
+        // Contracting back
+        var t = (cycleT - 0.5) / 0.35;
+        var ease = t * t;
+        ringR = targetR * (1 - ease);
+        alpha = 0.7 + t * 0.3;
+      } else {
+        ringR = 0;
+        alpha = 0;
+      }
+
+      if (ringR > 1) {
+        // Ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(34, 211, 238, ' + alpha + ')';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Filled pulse
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(34, 211, 238, ' + (alpha * 0.08) + ')';
+        ctx.fill();
+      }
+
+      // Show reading when ring returns
+      if (cycleT > 0.85) {
+        var fadeIn = (cycleT - 0.85) / 0.15;
+        ctx.globalAlpha = fadeIn;
+        ctx.font = '600 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = CYAN;
+        ctx.fillText(latency.toFixed(1) + ' ms', cx, cy - 30 - cycleIdx * 0);
+        ctx.globalAlpha = 1;
+      }
+
+      // Previous readings
+      for (var i = 0; i < cycleIdx; i++) {
+        ctx.font = '500 11px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.4)';
+        ctx.fillText('#' + (i + 1) + ': ' + latencies[i].toFixed(1) + ' ms', w - 20, 20 + i * 16);
+      }
+    } else {
+      // Settle: show all readings + average
+      for (var i = 0; i < totalCycles; i++) {
+        ctx.font = '500 11px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.4)';
+        ctx.fillText('#' + (i + 1) + ': ' + latencies[i].toFixed(1) + ' ms', w - 20, 20 + i * 16);
+      }
+      var settleT = (elapsed - cycleDur * totalCycles) / 1200;
+      if (settleT > 0.2) {
+        var a = Math.min(1, (settleT - 0.2) / 0.4);
+        // Gentle persistent ring at avg radius
+        var avgR = maxR * (8.2 / maxLatency);
+        ctx.beginPath();
+        ctx.arc(cx, cy, avgR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(34, 211, 238, ' + (a * 0.5) + ')';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.globalAlpha = a;
+        ctx.font = '700 16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = CYAN;
+        ctx.fillText('8.2 ms', cx, cy - 30);
+        ctx.font = '500 10px Inter, sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('idle latency', cx, cy - 16);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+
+// ============================================================
+// OPTION 4: Packet Hop Trail
+// ============================================================
+(function() {
+  var s = setupCanvas('c4');
+  var ctx = s.ctx, w = s.w, h = s.h;
+
+  var hops = [
+    { label: 'Client', x: 0 },
+    { label: 'Router', x: 0.25 },
+    { label: 'ISP', x: 0.55 },
+    { label: 'Server', x: 1 }
+  ];
+  var padX = 50;
+  var pathX0 = padX, pathX1 = w - padX;
+  var pathLen = pathX1 - pathX0;
+  var pathY = h * 0.4;
+  hops.forEach(function(hop) { hop.px = pathX0 + pathLen * hop.x; });
+
+  var cycleDur = 2400; // full round-trip
+  var totalCycles = 3;
+  var totalDur = cycleDur * totalCycles + 1200;
+  var latencies = [8.2, 8.5, 7.9];
+  var startTime = performance.now();
+
+  function draw(now) {
+    var elapsed = (now - startTime) % totalDur;
+    ctx.clearRect(0, 0, w, h);
+
+    // Draw hops
+    hops.forEach(function(hop, i) {
+      // Dot
+      ctx.fillStyle = i === 0 ? CYAN : i === hops.length - 1 ? GREEN : '#475569';
+      ctx.beginPath(); ctx.arc(hop.px, pathY, 5, 0, Math.PI * 2); ctx.fill();
+
+      // Label
+      ctx.font = '600 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(hop.label, hop.px, pathY - 18);
+
+      // Connecting dashes
+      if (i < hops.length - 1) {
+        ctx.save();
+        ctx.setLineDash([3, 5]);
+        ctx.strokeStyle = DIM;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hop.px + 10, pathY);
+        ctx.lineTo(hops[i + 1].px - 10, pathY);
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+
+    var cycleIdx = Math.floor(elapsed / cycleDur);
+    var cycleT = (elapsed % cycleDur) / cycleDur;
+
+    if (cycleIdx < totalCycles) {
+      // 0-0.45: going right, 0.45-0.5: pause at server, 0.5-0.95: coming back, 0.95-1: show reading
+      var dotX, dotColor, trail = [];
+      var goingRight, progress;
+
+      if (cycleT < 0.45) {
+        goingRight = true;
+        progress = cycleT / 0.45;
+        var ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+        dotX = pathX0 + pathLen * ease;
+        dotColor = CYAN;
+      } else if (cycleT < 0.5) {
+        // Pause at server
+        dotX = pathX1;
+        dotColor = GREEN;
+      } else if (cycleT < 0.95) {
+        goingRight = false;
+        progress = (cycleT - 0.5) / 0.45;
+        var ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+        dotX = pathX1 - pathLen * ease;
+        dotColor = GREEN;
+      } else {
+        dotX = pathX0;
+        dotColor = CYAN;
+      }
+
+      // Trail (fading dots behind the packet)
+      var trailCount = 8;
+      for (var t = 1; t <= trailCount; t++) {
+        var trailT;
+        if (cycleT < 0.45) {
+          trailT = Math.max(0, (cycleT - t * 0.012) / 0.45);
+          var te = trailT < 0.5 ? 2 * trailT * trailT : -1 + (4 - 2 * trailT) * trailT;
+          var tx = pathX0 + pathLen * te;
+          ctx.globalAlpha = (1 - t / trailCount) * 0.4;
+          ctx.fillStyle = CYAN;
+          ctx.beginPath(); ctx.arc(tx, pathY, 3, 0, Math.PI * 2); ctx.fill();
+        } else if (cycleT >= 0.5 && cycleT < 0.95) {
+          trailT = Math.max(0, ((cycleT - 0.5) - t * 0.012) / 0.45);
+          var te = trailT < 0.5 ? 2 * trailT * trailT : -1 + (4 - 2 * trailT) * trailT;
+          var tx = pathX1 - pathLen * te;
+          ctx.globalAlpha = (1 - t / trailCount) * 0.4;
+          ctx.fillStyle = GREEN;
+          ctx.beginPath(); ctx.arc(tx, pathY, 3, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Main packet dot with glow
+      if (cycleT < 0.95) {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = dotColor;
+        ctx.beginPath(); ctx.arc(dotX, pathY, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = dotColor;
+        ctx.beginPath(); ctx.arc(dotX, pathY, 5, 0, Math.PI * 2); ctx.fill();
+
+        // "Hop" flash when passing a hop node
+        hops.forEach(function(hop) {
+          if (Math.abs(dotX - hop.px) < 8) {
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = dotColor;
+            ctx.beginPath(); ctx.arc(hop.px, pathY, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+        });
+      }
+
+      // Show reading at end of cycle
+      if (cycleT > 0.95) {
+        var fadeIn = (cycleT - 0.95) / 0.05;
+        ctx.globalAlpha = fadeIn;
+        ctx.font = '600 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = CYAN;
+        ctx.fillText(latencies[cycleIdx].toFixed(1) + ' ms', w / 2, pathY + 40 + cycleIdx * 20);
+        ctx.globalAlpha = 1;
+      }
+
+      // Previous readings
+      for (var i = 0; i < cycleIdx; i++) {
+        ctx.font = '600 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.5)';
+        ctx.fillText(latencies[i].toFixed(1) + ' ms', w / 2, pathY + 40 + i * 20);
+      }
+    } else {
+      // Settle: show all + average
+      for (var i = 0; i < totalCycles; i++) {
+        ctx.font = '500 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.4)';
+        ctx.fillText(latencies[i].toFixed(1) + ' ms', w / 2, pathY + 40 + i * 20);
+      }
+      var settleT = (elapsed - cycleDur * totalCycles) / 1200;
+      if (settleT > 0.3) {
+        var a = Math.min(1, (settleT - 0.3) / 0.3);
+        ctx.globalAlpha = a;
+        ctx.font = '700 16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = CYAN;
+        ctx.fillText('Avg: 8.2 ms', w / 2, pathY + 110);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

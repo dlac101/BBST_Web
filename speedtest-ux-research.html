@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speedtest UX Research - Competitive Analysis</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #0a0e17;
+    color: #c9cdd4;
+    line-height: 1.6;
+    padding: 40px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f0f2f5;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 48px;
+  }
+
+  .site-section {
+    margin-bottom: 64px;
+    border: 1px solid #1e2636;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #111827;
+  }
+
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    background: #151c2c;
+    border-bottom: 1px solid #1e2636;
+  }
+
+  .site-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f0f2f5;
+  }
+
+  .site-url {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .analysis-col {
+    padding: 24px 28px;
+  }
+
+  .analysis-col:first-child {
+    border-right: 1px solid #1e2636;
+  }
+
+  .analysis-col h3 {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .analysis-col h3.good { color: #00d264; }
+  .analysis-col h3.bad { color: #ef4444; }
+
+  .analysis-col ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .analysis-col li {
+    padding: 8px 0;
+    border-bottom: 1px solid #1a2030;
+    font-size: 14px;
+    color: #9ca3af;
+  }
+
+  .analysis-col li:last-child { border-bottom: none; }
+
+  .analysis-col li strong {
+    color: #e5e7eb;
+    font-weight: 500;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .tag-steal { background: #00d26420; color: #00d264; border: 1px solid #00d26440; }
+  .tag-avoid { background: #ef444420; color: #ef4444; border: 1px solid #ef444440; }
+  .tag-improve { background: #f59e0b20; color: #f59e0b; border: 1px solid #f59e0b40; }
+
+  .key-features {
+    padding: 20px 28px;
+    border-top: 1px solid #1e2636;
+    background: #0f1520;
+  }
+
+  .key-features h3 {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+    color: #00d2be;
+  }
+
+  .feature-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #1a2236;
+    color: #9ca3af;
+    border: 1px solid #2a3346;
+  }
+
+  .summary-section {
+    margin-top: 64px;
+    padding: 32px;
+    border: 2px solid #00d2be30;
+    border-radius: 12px;
+    background: #0d1420;
+  }
+
+  .summary-section h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #00d2be;
+    margin-bottom: 24px;
+  }
+
+  .principle-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .principle {
+    padding: 20px;
+    background: #111827;
+    border-radius: 8px;
+    border: 1px solid #1e2636;
+  }
+
+  .principle h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f0f2f5;
+    margin-bottom: 8px;
+  }
+
+  .principle p {
+    font-size: 13px;
+    color: #9ca3af;
+  }
+
+  .principle .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: #00d2be30;
+    margin-bottom: 8px;
+  }
+
+  .site-link-bar {
+    display: flex;
+    gap: 12px;
+    padding: 16px 28px;
+    border-top: 1px solid #1e2636;
+    background: #0d1420;
+  }
+
+  .site-link-bar a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #00d2be;
+    text-decoration: none;
+    padding: 6px 16px;
+    border: 1px solid #00d2be40;
+    border-radius: 6px;
+    transition: all 150ms ease;
+  }
+
+  .site-link-bar a:hover {
+    background: #00d2be15;
+    border-color: #00d2be80;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #1e2636, transparent);
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Speedtest UX Competitive Analysis</h1>
+<p class="subtitle">Research for SmartOS BBST Speedtest Page // March 2026</p>
+
+<!-- ========== SPEEDTEST.NET ========== -->
+<section class="site-section">
+  <div class="site-header">
+    <div>
+      <div class="site-name">Speedtest by Ookla</div>
+      <div class="site-url">speedtest.net</div>
+    </div>
+    <div style="font-size:13px; color:#6b7280;">Industry standard, 25+ years</div>
+  </div>
+
+  <div class="site-link-bar">
+    <a href="https://www.speedtest.net" target="_blank">Open Landing Page</a>
+    <a href="https://www.speedtest.net/result/18981452168" target="_blank">View Test Result</a>
+  </div>
+
+  <div class="analysis-grid">
+    <div class="analysis-col">
+      <h3 class="good">&#9679; What They Do Well</h3>
+      <ul>
+        <li><strong>Iconic GO button</strong> with zero-friction single-click start <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>Animated needle gauge</strong> during test gives satisfying visual feedback of speed climbing</li>
+        <li><strong>Color-coded phases</strong>: cyan for download, magenta for upload. Clear visual state distinction <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>Phase indicators</strong> (4 dots below ping) show test progress stages at a glance</li>
+        <li><strong>ISP + Server context</strong> always visible: you know who you're testing against</li>
+        <li><strong>Shareable result IDs</strong> with permalink URLs</li>
+        <li><strong>Ping/Jitter/Packet Loss</strong> shown alongside speed (3 latency values)</li>
+      </ul>
+    </div>
+    <div class="analysis-col">
+      <h3 class="bad">&#9679; What They Do Poorly</h3>
+      <ul>
+        <li><strong>No bufferbloat measurement</strong>: the biggest blind spot. Only shows idle latency, not latency under load <span class="tag tag-avoid">GAP</span></li>
+        <li><strong>Results page is cluttered</strong> with CTAs: "Create Account", "Rate Your Provider", "Find ISP" ads</li>
+        <li><strong>No historical trend view</strong> without an account. Results are ephemeral</li>
+        <li><strong>No service rate context</strong>: 944 Mbps means nothing without knowing if you're paying for 1 Gbps or 2 Gbps <span class="tag tag-improve">WE CAN DO BETTER</span></li>
+        <li><strong>No utilization percentage</strong>: "am I getting what I pay for?" is unanswered</li>
+        <li><strong>Gauge is decorative</strong> during results: static display, wasted screen real estate</li>
+        <li><strong>Dark theme only</strong>, no accessibility options</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="key-features">
+    <h3>Key UI Elements</h3>
+    <div class="feature-pills">
+      <span class="pill">Needle Gauge (animated)</span>
+      <span class="pill">Logarithmic Scale</span>
+      <span class="pill">Phase Progress Dots</span>
+      <span class="pill">DL/UL Color Coding</span>
+      <span class="pill">Server Picker</span>
+      <span class="pill">Multi/Single Toggle</span>
+      <span class="pill">Result Sharing</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== FAST.COM ========== -->
+<section class="site-section">
+  <div class="site-header">
+    <div>
+      <div class="site-name">Fast.com (Netflix)</div>
+      <div class="site-url">fast.com</div>
+    </div>
+    <div style="font-size:13px; color:#6b7280;">Simplicity-first, consumer-focused</div>
+  </div>
+
+  <div class="site-link-bar">
+    <a href="https://fast.com" target="_blank">Open Fast.com (auto-starts test)</a>
+  </div>
+
+  <div class="analysis-grid">
+    <div class="analysis-col">
+      <h3 class="good">&#9679; What They Do Well</h3>
+      <ul>
+        <li><strong>Auto-start on page load</strong>: zero clicks needed. Fastest time-to-value of any speedtest <span class="tag tag-steal">STEAL THIS CONCEPT</span></li>
+        <li><strong>Massive typography</strong>: the speed number is impossible to miss. Bold hierarchy</li>
+        <li><strong>Progressive disclosure</strong>: simple number first, "Show more info" reveals latency + upload <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>Unloaded vs Loaded latency</strong> distinction: shows bufferbloat impact implicitly</li>
+        <li><strong>Data usage shown</strong> (2800MB DL, 2170MB UL): transparency about test cost</li>
+        <li><strong>Ultra clean layout</strong>: no clutter, no ads, no upsells</li>
+      </ul>
+    </div>
+    <div class="analysis-col">
+      <h3 class="bad">&#9679; What They Do Poorly</h3>
+      <ul>
+        <li><strong>No visual progress indicator</strong> beyond a spinner. No gauge, no chart, no phase info</li>
+        <li><strong>No history at all</strong>: completely stateless, no trend data</li>
+        <li><strong>No bufferbloat grade</strong>: shows unloaded/loaded but doesn't interpret the delta <span class="tag tag-improve">WE CAN DO BETTER</span></li>
+        <li><strong>No server selection</strong>: can't control test parameters</li>
+        <li><strong>Bland design</strong>: white text on dark grey, no personality, no brand expression</li>
+        <li><strong>No utilization or service rate context</strong></li>
+        <li><strong>Light on details</strong>: no jitter, no packet loss, no percentile data</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="key-features">
+    <h3>Key UI Elements</h3>
+    <div class="feature-pills">
+      <span class="pill">Auto-Start</span>
+      <span class="pill">Giant Speed Number</span>
+      <span class="pill">Progressive Disclosure</span>
+      <span class="pill">Unloaded vs Loaded Latency</span>
+      <span class="pill">Data Usage Counter</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== WAVEFORM ========== -->
+<section class="site-section">
+  <div class="site-header">
+    <div>
+      <div class="site-name">Waveform Bufferbloat Test</div>
+      <div class="site-url">waveform.com/tools/bufferbloat</div>
+    </div>
+    <div style="font-size:13px; color:#6b7280;">Bufferbloat-focused, most relevant competitor</div>
+  </div>
+
+  <div class="site-link-bar">
+    <a href="https://www.waveform.com/tools/bufferbloat" target="_blank">Open Waveform Bufferbloat Test</a>
+  </div>
+
+  <div class="analysis-grid">
+    <div class="analysis-col">
+      <h3 class="good">&#9679; What They Do Well</h3>
+      <ul>
+        <li><strong>Bufferbloat grade (A-F)</strong> as the hero metric, not speed. This is the right priority <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>Latency delta display</strong>: shows "+0ms" and "+30ms" relative to unloaded. Brilliant UX for understanding impact <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>"Your Connection" capability matrix</strong>: translates technical results into "can I do 4K streaming? gaming?" answers <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>Box-plot latency distribution</strong>: shows Min, Median, Max, Mean, 25th/75th/95th percentiles. Real statistical rigor</li>
+        <li><strong>Three latency conditions</strong>: Unloaded, Download Active, Upload Active. Complete picture</li>
+        <li><strong>Educational context</strong>: explains what bufferbloat is before the test</li>
+        <li><strong>Shareable result URLs</strong></li>
+      </ul>
+    </div>
+    <div class="analysis-col">
+      <h3 class="bad">&#9679; What They Do Poorly</h3>
+      <ul>
+        <li><strong>Busy, cluttered layout</strong>: too many boxes competing for attention. No visual hierarchy <span class="tag tag-avoid">AVOID</span></li>
+        <li><strong>Affiliate product links below results</strong>: undermines credibility as a diagnostic tool</li>
+        <li><strong>No progress visualization during test</strong>: just a progress bar, no gauge or chart</li>
+        <li><strong>No historical comparison</strong>: single-test view only</li>
+        <li><strong>Speed is secondary</strong>: DL/UL numbers are small relative to the grade. For ISP context we need both prominently <span class="tag tag-improve">BALANCE</span></li>
+        <li><strong>No service rate utilization</strong>: same gap as everyone else</li>
+        <li><strong>Color-coded borders are confusing</strong>: green, yellow, cyan borders around sections lack clear meaning</li>
+        <li><strong>Box plots are niche</strong>: most consumers won't understand percentile distributions <span class="tag tag-improve">SIMPLIFY</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="key-features">
+    <h3>Key UI Elements</h3>
+    <div class="feature-pills">
+      <span class="pill">Bufferbloat Grade (A-F)</span>
+      <span class="pill">Latency Delta "+Xms"</span>
+      <span class="pill">Capability Matrix</span>
+      <span class="pill">Box-Plot Distributions</span>
+      <span class="pill">Percentile Stats</span>
+      <span class="pill">Educational Pre-Test</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== CLOUDFLARE ========== -->
+<section class="site-section">
+  <div class="site-header">
+    <div>
+      <div class="site-name">Cloudflare Speed Test</div>
+      <div class="site-url">speed.cloudflare.com</div>
+    </div>
+    <div style="font-size:13px; color:#6b7280;">Most technically comprehensive</div>
+  </div>
+
+  <div class="site-link-bar">
+    <a href="https://speed.cloudflare.com" target="_blank">Open Cloudflare Speed Test</a>
+  </div>
+
+  <div class="analysis-grid">
+    <div class="analysis-col">
+      <h3 class="good">&#9679; What They Do Well</h3>
+      <ul>
+        <li><strong>Real-time throughput chart</strong> during test: shows the actual measurement curve, not just a gauge <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>"Network Quality Score"</strong> with use-case ratings: "Video Streaming: Good, Online Gaming: Average" <span class="tag tag-steal">STEAL</span></li>
+        <li><strong>Multi-size test breakdown</strong>: 100KB, 1MB, 10MB, 25MB, 100MB tests shown separately with box plots</li>
+        <li><strong>Latency during download vs upload</strong>: separate measurements, like BBST</li>
+        <li><strong>Map visualization</strong> showing client-to-server path</li>
+        <li><strong>Packet loss measurement</strong> with received/lost ratio bar</li>
+        <li><strong>Pause/Resume/Retest controls</strong>: good test management</li>
+        <li><strong>Download results as JSON/image</strong></li>
+      </ul>
+    </div>
+    <div class="analysis-col">
+      <h3 class="bad">&#9679; What They Do Poorly</h3>
+      <ul>
+        <li><strong>Information overload</strong>: the page is exhausting. Too many sections, too much data for most users <span class="tag tag-avoid">AVOID</span></li>
+        <li><strong>Light theme only</strong>: no dark mode, looks clinical/sterile</li>
+        <li><strong>No clear hero metric</strong>: 7+ numbers competing for attention. What should I care about first? <span class="tag tag-avoid">AVOID</span></li>
+        <li><strong>Test takes very long</strong>: multiple size classes means ~60s total</li>
+        <li><strong>No bufferbloat grade</strong>: has the data (latency under load) but doesn't synthesize into a grade</li>
+        <li><strong>Box plots are tiny and hard to read</strong></li>
+        <li><strong>No service rate or utilization context</strong></li>
+        <li><strong>No history or trend comparison</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="key-features">
+    <h3>Key UI Elements</h3>
+    <div class="feature-pills">
+      <span class="pill">Realtime Throughput Chart</span>
+      <span class="pill">Network Quality Score</span>
+      <span class="pill">Multi-Size Tests</span>
+      <span class="pill">Server Map</span>
+      <span class="pill">Packet Loss Bar</span>
+      <span class="pill">Pause/Resume</span>
+      <span class="pill">JSON Export</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SYNTHESIS ========== -->
+<section class="summary-section">
+  <h2>Design Principles for SmartOS Speedtest Page</h2>
+  <p style="color:#9ca3af; margin-bottom:24px; font-size:14px;">
+    Our unique advantage: we run on the router itself, we know the service rate, we have BBST with bufferbloat grading, and we have historical data. No competitor has all of these.
+  </p>
+
+  <div class="principle-grid">
+    <div class="principle">
+      <div class="num">01</div>
+      <h4>Speed + Quality, Equal Weight</h4>
+      <p>Hero the speed results AND the bufferbloat grade together. Ookla ignores quality. Waveform buries speed. We show both prominently because ISP subscribers care about both: "am I getting what I pay for?" AND "why do my video calls lag?"</p>
+    </div>
+    <div class="principle">
+      <div class="num">02</div>
+      <h4>Service Rate Context (Our Killer Feature)</h4>
+      <p>Show % utilization against the provisioned plan. 944 Mbps on a 1 Gbps plan = 94% utilization = great. 944 Mbps on an 8 Gbps plan = 12% = problem. Nobody else can do this because they don't know your plan speed. We do.</p>
+    </div>
+    <div class="principle">
+      <div class="num">03</div>
+      <h4>Progressive Disclosure</h4>
+      <p>Simple view: big speed numbers, grade pill, utilization bar. One-click "details" reveals latency breakdown, jitter, percentiles, server info. Steal from fast.com's layered approach, not Cloudflare's data dump.</p>
+    </div>
+    <div class="principle">
+      <div class="num">04</div>
+      <h4>Animated Test Phase Feedback</h4>
+      <p>Combine Ookla's gauge satisfaction with Cloudflare's real-time throughput chart. Show the speed climbing in real-time with clear phase indicators (Idle Latency, Download, Upload). Color-code each phase distinctly.</p>
+    </div>
+    <div class="principle">
+      <div class="num">05</div>
+      <h4>Historical Trend (Our Other Killer Feature)</h4>
+      <p>We archive up to 100 results. Show a speed history chart with bufferbloat grades overlaid. "Your connection has improved since Tuesday" or "Bufferbloat worsened after firmware update." Nobody else offers on-device history.</p>
+    </div>
+    <div class="principle">
+      <div class="num">06</div>
+      <h4>Practical Impact Translation</h4>
+      <p>Steal Waveform's capability matrix but make it better. "Your connection supports: 4K streaming (yes), video calls (yes), cloud gaming (limited by bufferbloat)." Turn technical numbers into answers people actually want.</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
