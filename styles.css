@@ -480,6 +480,9 @@ ul { list-style: none; }
   line-height: 1;
   text-shadow: 0 0 8px rgba(11, 17, 32, 0.9), 0 0 16px rgba(11, 17, 32, 0.7);
 }
+[data-theme="light"] .st-live-value {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.7);
+}
 
 .st-live-unit {
   font-family: var(--font-mono);

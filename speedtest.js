@@ -7,6 +7,17 @@
 /* ===== Utilities ===== */
 const el = id => document.getElementById(id);
 
+function isDarkTheme() {
+  return document.documentElement.getAttribute('data-theme') !== 'light';
+}
+
+// Returns rgba string for canvas text/grid elements that adapts to theme
+function canvasText(alpha) {
+  return isDarkTheme()
+    ? 'rgba(255,255,255,' + alpha + ')'
+    : 'rgba(0,0,0,' + alpha + ')';
+}
+
 function gradeColor(g) {
   return g === 'A' ? 'var(--accent-green)' : g === 'B' ? 'var(--accent-cyan)' : g === 'C' ? 'var(--accent-amber)' : 'var(--accent-red)';
 }
@@ -323,7 +334,7 @@ function renderLatencyBars(lat) {
       '<span><span class="lat-leg-swatch idle"></span>Idle ' + idle.toFixed(1) + ' ms</span>' +
       '<span><span class="lat-leg-swatch dl"></span>DL +' + dlDelta.toFixed(1) + ' ms</span>' +
       '<span><span class="lat-leg-swatch ul"></span>UL +' + ulDelta.toFixed(1) + ' ms</span>' +
-      '<span style="color:var(--text-muted)">Total ' + lat.upload_avg.toFixed(1) + ' ms</span>' +
+      '<span style="color:var(--text-muted)">Peak ' + Math.max(lat.download_avg, lat.upload_avg).toFixed(1) + ' ms</span>' +
     '</div>' +
     '<div class="lat-leg-row lat-leg-grades">' +
       '<span class="lat-leg-grades-label">Bufferbloat Grade</span>' +
@@ -415,21 +426,6 @@ function renderLatencyGrid(result) {
   ulDeltaEl.className = 'st-latency-delta ' + deltaClass(ulDelta);
 }
 
-/* ===== Server Table (Advanced) ===== */
-function renderServerTable(result) {
-  const tbody = el('st-servers-tbody');
-  if (!result.server_selection) return;
-  tbody.innerHTML = result.server_selection.map(s => `
-    <tr class="${s.selected ? 'selected' : ''}">
-      <td>${s.rank}</td>
-      <td>${s.host}</td>
-      <td>${s.city}</td>
-      <td>${s.latency_ms.toFixed(1)} ms</td>
-      <td>${s.selected ? '<i class="fa-solid fa-check st-server-check"></i>' : ''}</td>
-    </tr>
-  `).join('');
-}
-
 /* ===== Speed Gauge (Canvas) ===== */
 function drawSpeedGauge(value, maxValue, color, phaseLabel) {
   const canvas = el('st-gauge-canvas');
@@ -464,7 +460,7 @@ function drawSpeedGauge(value, maxValue, color, phaseLabel) {
   // Arc track
   ctx.beginPath();
   ctx.arc(cx, cy, r, startAngle, endAngle, false);
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.strokeStyle = canvasText(0.12);
   ctx.lineWidth = Math.max(3, r * 0.035);
   ctx.lineCap = 'round';
   ctx.stroke();
@@ -493,7 +489,7 @@ function drawSpeedGauge(value, maxValue, color, phaseLabel) {
     ctx.beginPath();
     ctx.moveTo(cx + inner * Math.cos(a), cy + inner * Math.sin(a));
     ctx.lineTo(cx + outer * Math.cos(a), cy + outer * Math.sin(a));
-    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)';
+    ctx.strokeStyle = isMajor ? canvasText(0.5) : canvasText(0.2);
     ctx.lineWidth = isMajor ? 1.5 : 0.8;
     ctx.stroke();
 
@@ -505,7 +501,7 @@ function drawSpeedGauge(value, maxValue, color, phaseLabel) {
       ctx.font = '500 ' + Math.round(r * 0.09) + 'px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillStyle = canvasText(0.4);
       const lbl = tv >= 1000 ? (tv/1000) + 'G' : tv.toString();
       ctx.fillText(lbl, lx, ly);
     }
@@ -518,21 +514,22 @@ function drawSpeedGauge(value, maxValue, color, phaseLabel) {
   const baseHalf = Math.max(3, r * 0.05);
   const perpN = needleAngle + Math.PI / 2;
   ctx.save();
-  ctx.shadowColor = 'rgba(255,255,255,0.4)';
+  var needleColor = isDarkTheme() ? '#ffffff' : '#1f2937';
+  ctx.shadowColor = canvasText(0.4);
   ctx.shadowBlur = 6;
   ctx.beginPath();
   ctx.moveTo(tipX, tipY);
   ctx.lineTo(cx + baseHalf * Math.cos(perpN), cy + baseHalf * Math.sin(perpN));
   ctx.lineTo(cx - baseHalf * Math.cos(perpN), cy - baseHalf * Math.sin(perpN));
   ctx.closePath();
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = needleColor;
   ctx.fill();
   ctx.restore();
 
   // Pivot dot
   ctx.beginPath();
   ctx.arc(cx, cy, Math.max(3, r * 0.05), 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = needleColor;
   ctx.fill();
 }
 
@@ -558,7 +555,7 @@ function drawRealtimeChart(canvasId) {
 
   const allSamples = [...realtimeSamples.dl, ...realtimeSamples.ul];
   if (allSamples.length === 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillStyle = canvasText(0.15);
     ctx.font = '12px "Inter", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Run a test to see throughput data', W / 2, H / 2);
@@ -580,11 +577,11 @@ function drawRealtimeChart(canvasId) {
   for (let i = 0; i <= gridSteps; i++) {
     const val = yMax * i / gridSteps;
     const y = pad.top + cH - val * yScale;
-    ctx.strokeStyle = i === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = i === 0 ? canvasText(0.15) : canvasText(0.06);
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
     const lbl = val >= 1000 ? (val/1000).toFixed(0) + 'G' : Math.round(val).toString();
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillStyle = canvasText(0.35);
     ctx.fillText(lbl, pad.left - 5, y);
   }
 
@@ -648,7 +645,7 @@ function drawRealtimeChart(canvasId) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.font = '10px monospace';
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillStyle = canvasText(0.35);
   for (let t = 0; t <= maxT; t += Math.max(1, Math.round(maxT / 6))) {
     const x = pad.left + t * xScale;
     ctx.fillText(t + 's', x, pad.top + cH + 6);
@@ -833,9 +830,6 @@ function formatSpeedLabel(mbps) {
 
       // Position: above the point, centered horizontally
       var wrap = canvas.parentElement;
-      var wRect = wrap.getBoundingClientRect();
-      var ptScreenX = rect.left + (pt.x * dpr) / (canvas.width / rect.width) * dpr;
-      // Simpler: use CSS coords relative to wrapper
       var cssX = pt.x;
       var cssY = pt.y;
       var ttW = tt.offsetWidth;
@@ -963,7 +957,7 @@ function renderHistoryChart() {
   for (let i = 0; i <= gridSteps; i++) {
     const val = yMax * i / gridSteps;
     const y = pad.top + cH - val * yScale;
-    ctx.strokeStyle = i === 0 ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.07)';
+    ctx.strokeStyle = i === 0 ? canvasText(0.20) : canvasText(0.07);
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
   }
@@ -1030,9 +1024,9 @@ function renderHistoryChart() {
     if (i === 0 || i === n - 1 || i % labelEvery === 0) {
       const d = new Date(epoch * 1000);
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillStyle = 'rgba(255,255,255,0.60)'; ctx.font = '11px monospace';
+      ctx.fillStyle = canvasText(0.60); ctx.font = '11px monospace';
       ctx.fillText(DAYS[d.getDay()], barCx, baseY + 10);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '10px monospace';
+      ctx.fillStyle = canvasText(0.35); ctx.font = '10px monospace';
       ctx.fillText((d.getMonth()+1) + '/' + d.getDate(), barCx, baseY + 24);
     }
 
@@ -1223,6 +1217,9 @@ function generateSpeedCurve(targetMbps, durationMs, sampleIntervalMs) {
 
 function startTest() {
   if (currentState !== TestState.IDLE) return;
+
+  // Cancel any lingering animation frame from a previous test
+  if (testRAF) { cancelAnimationFrame(testRAF); testRAF = null; }
 
   // Morph GO button into gauge -- hide button, show canvas + live speed
   const goBtn = el('st-go-btn');
@@ -1686,6 +1683,7 @@ function completeTest() {
   }
 
   // Reset state
+  testRAF = null;
   setTimeout(() => {
     currentState = TestState.IDLE;
     el('st-phase-bar').style.display = 'none';
