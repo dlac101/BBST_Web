@@ -14,23 +14,6 @@ Standalone prototype UI for the SmartOS BBST (Broadband Speed Test) page. Design
 - **Progressive disclosure** with basic view and expandable advanced details
 - **Dark and light themes** with CSS custom properties
 
-## Screenshots
-
-### Main View (Dark Theme)
-![Main dark view](screenshots/01-main-dark.png)
-
-### Bufferbloat Grade Tooltip
-![Grade tooltip with shaper link](screenshots/02-grade-tooltip.png)
-
-### WAN Shaper Configuration
-![Shaper modal overlay](screenshots/03-shaper-modal.png)
-
-### Advanced Details
-![Bufferbloat score, latency breakdown](screenshots/04-advanced-details.png)
-
-### Light Theme
-![Light theme variant](screenshots/05-light-theme.png)
-
 ## File Structure
 
 ```
