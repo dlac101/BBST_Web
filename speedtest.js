@@ -37,6 +37,33 @@ function gradeTint(g) {
   return g === 'A' ? 'rgba(16,185,129,0.12)' : g === 'B' ? 'rgba(14,165,201,0.12)' : g === 'C' ? 'rgba(217,119,6,0.12)' : 'rgba(220,38,38,0.12)';
 }
 
+/* Grade tooltip text - matches SmartOS srg-speedwave.js textGrade array */
+const GRADE_INFO = {
+  A: { label: 'Excellent', text: 'Your latency under load is excellent.' },
+  B: { label: 'Good',      text: 'Your latency under load is good.' },
+  C: { label: 'Fair',      text: 'Your latency under load is fair.' },
+  D: { label: 'Poor',      text: 'Your latency under load is poor.' },
+  U: { label: 'Unknown',   text: 'Your latency under load could not be measured.' }
+};
+
+function updateGradeTooltip(tipId, grade) {
+  var tip = el(tipId);
+  if (!tip) return;
+  var info = GRADE_INFO[grade] || GRADE_INFO['U'];
+  var header = tip.querySelector('.st-grade-tip-header');
+  var body = tip.querySelector('.st-grade-tip-body');
+  if (header) {
+    header.textContent = 'Bufferbloat Grade ' + grade + ': ' + info.label;
+    header.style.color = gradeColor(grade);
+  }
+  if (body) body.textContent = info.text;
+  // Show shaper link when grade is not A
+  var shaperLink = tip.querySelector('.st-grade-tip-shaper');
+  if (shaperLink) {
+    shaperLink.style.display = (grade !== 'A') ? '' : 'none';
+  }
+}
+
 function formatSpeed(mbps) {
   if (mbps >= 1000) return (mbps / 1000).toFixed(2);
   return Math.round(mbps).toString();
@@ -58,8 +85,10 @@ function formatEpochShort(epoch) {
   return DAYS[d.getDay()] + ' ' + (d.getMonth()+1) + '/' + d.getDate();
 }
 
-function timeAgo(isoStr) {
-  const diff = Date.now() - new Date(isoStr).getTime();
+function timeAgo(epochOrIso) {
+  // Accepts Unix epoch (seconds) or ISO string
+  var ms = typeof epochOrIso === 'number' ? epochOrIso * 1000 : new Date(epochOrIso).getTime();
+  const diff = Date.now() - ms;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return mins + 'm ago';
@@ -69,85 +98,131 @@ function timeAgo(isoStr) {
 }
 
 /* ===== Mock Data ===== */
+/* -----------------------------------------------------------------------
+   MOCK data matches the real BBST results JSON schema from bbst_latency.c
+   and /tmp/bbst_results.json on the router.
+
+   Integration notes:
+   - Start test:    execute /usr/srg/scripts/start_bbst
+   - Poll progress: read /tmp/bbst_results.json (updated each rate window)
+   - Listen events: ubus listen speedtest (channel: "speedtest")
+   - Get history:   read /FLASH/persist/bbst_results/bbst_result_*.json
+   - Service rates: UCI network.wan.service_rate_ds_mbps / us_mbps
+   ----------------------------------------------------------------------- */
 const MOCK = {
+  // UCI: network.wan.service_rate_ds_mbps / network.wan.service_rate_us_mbps
   wan: {
-    service_rate_dl: 8000,
-    service_rate_ul: 4000
+    service_rate_ds_mbps: 8000,
+    service_rate_us_mbps: 4000
   },
 
   latestResult: {
-    test_status: 'complete',
-    starttime: '2026-03-21T14:30:00Z',
-    endtime: '2026-03-21T14:30:42Z',
-    runtime: 42,
-    client_version: '0.4.2',
-    download: { mbps: 7540, pct_utilization: 94.3, total_byte_rx: 9823456000 },
-    upload:   { mbps: 3820, pct_utilization: 95.5, total_byte_tx: 4912345000 },
+    test_status: 'completed',
+    test_error: 'n/a',
+    starttime: 1774295400.00,
+    endtime: 1774295442.00,
+    runtime: 42.0,
+    client_version: 'bbst v0.4.2',
+    download: {
+      server_url: 'https://speedtest-atl.adtran.net/download/10G.dat',
+      status: 'completed', mbps: 7540, pct_utilization: 94,
+      total_byte_rx: 9823456000, progress_pct: 100
+    },
+    upload: {
+      server_url: 'https://speedtest-atl.adtran.net/upload',
+      status: 'completed', mbps: 3820, pct_utilization: 95,
+      total_byte_tx: 4912345000, progress_pct: 100
+    },
     latency: {
+      host: 'speedtest-atl.adtran.net',
       idle_avg: 8.2, download_avg: 14.6, upload_avg: 20.1,
       idle_jitter: 1.1, download_jitter: 3.4, upload_jitter: 5.2,
-      download_bufferbloat_grade: 'A', upload_bufferbloat_grade: 'B'
+      download_bufferbloat_grade: 'D',  // TEMP: faking bad grade for testing
+      upload_bufferbloat_grade: 'C'   // TEMP: faking bad grade for testing
     },
-    server_selection: [
-      { host: 'speedtest-atl.adtran.net', city: 'Atlanta', latency_ms: 8.2, rank: 1, selected: true },
-      { host: 'speedtest-nyc.adtran.net', city: 'New York', latency_ms: 12.4, rank: 2, selected: false },
-      { host: 'speedtest-dc.adtran.net',  city: 'Washington DC', latency_ms: 15.1, rank: 3, selected: false }
-    ],
-    client: { ip: '99.39.42.110', isp: 'AT&T Internet', city: 'Orlando', country: 'US' },
-    server: { host: 'speedtest-atl.adtran.net', city: 'Atlanta', country: 'US', distance: '680 km' },
+    server_selection: {
+      servers: [
+        { rank: 1, download_url: 'https://speedtest-atl.adtran.net/download/10G.dat', Status: 'OK', latency: 8.2, selected: 'yes' },
+        { rank: 2, download_url: 'https://speedtest-nyc.adtran.net/download/10G.dat', Status: 'OK', latency: 12.4, selected: 'no' },
+        { rank: 3, download_url: 'https://speedtest-dc.adtran.net/download/10G.dat', Status: 'OK', latency: 15.1, selected: 'no' }
+      ]
+    },
+    client: { ip: '99.39.42.110', isp: 'AT&T Internet', city: 'Orlando', country: 'US', lat: 28.5383, lon: -81.3792 },
+    server: { host: 'speedtest-atl.adtran.net', city: 'Atlanta', country: 'US', lat: '33.7490', lon: '-84.3880', distance: 680.0, isp: '' },
     test_options: {
-      downstream_service_rate: 8000, upstream_service_rate: 4000,
-      num_streams_download: 4, num_streams_upload: 4, client_mode: 'bbst'
+      client_mode: 'bbst', downstream_service_rate: 8000, upstream_service_rate: 4000,
+      num_streams_download: 8, num_streams_upload: 8, sample_interval: 0.25,
+      window_size: 5, stop_window_count: 6, wan_interface: 'eth0',
+      select_server_from_list: true, server_list_url: '', server_list_filename: '',
+      pppoe_encap: false, vlan_tagged: false
     }
   },
 
-  // 30 historical entries, newest-first
+  // 30 historical entries, newest-first (mirrors /FLASH/persist/bbst_results/bbst_result_*.json)
   history: (function() {
-    const entries = [];
-    const baseEpoch = Math.floor(new Date('2026-03-21T14:30:00Z').getTime() / 1000);
-    const servers = ['speedtest-atl.adtran.net', 'speedtest-nyc.adtran.net', 'speedtest-dc.adtran.net'];
-    const grades = ['A','A','A','B','B','B','B','C','A','A','B','A','A','C','B','B','A','A','B','C','A','A','B','B','A','A','B','C','A','B'];
-    const dlSpeeds = [7540,6840,7350,5920,4180,7540,6380,7790,6910,5480,7210,7850,4120,6820,7580,7210,7490,5340,7310,6930,7610,6880,7350,6590,7660,7210,7530,6940,6420,7190];
-    const ulSpeeds = [3820,3210,3890,2760,1840,3820,2970,3940,3340,2540,3690,3980,1780,3420,3950,3760,3820,2540,3750,3340,3920,3380,3810,3160,3970,3720,3870,3430,3090,3640];
+    var entries = [];
+    var baseEpoch = 1774295400;
+    var servers = ['speedtest-atl.adtran.net', 'speedtest-nyc.adtran.net', 'speedtest-dc.adtran.net'];
+    var cities = ['Atlanta', 'New York', 'Washington DC'];
+    var distances = [680.0, 1320.0, 1100.0];
+    var dlSpeeds = [7540,6840,7350,5920,4180,7540,6380,7790,6910,5480,7210,7850,4120,6820,7580,7210,7490,5340,7310,6930,7610,6880,7350,6590,7660,7210,7530,6940,6420,7190];
+    var ulSpeeds = [3820,3210,3890,2760,1840,3820,2970,3940,3340,2540,3690,3980,1780,3420,3950,3760,3820,2540,3750,3340,3920,3380,3810,3160,3970,3720,3870,3430,3090,3640];
 
-    for (let i = 0; i < 30; i++) {
-      const epoch = baseEpoch - i * 86400;
-      const dl = dlSpeeds[i];
-      const ul = ulSpeeds[i];
-      const dlG = grades[i];
-      const ulG = grades[(i + 3) % grades.length];
-      const idle = 8 + Math.random() * 8;
-      const dlLat = idle + 3 + Math.random() * 12;
-      const ulLat = idle + 6 + Math.random() * 14;
+    for (var i = 0; i < 30; i++) {
+      var epoch = baseEpoch - i * 86400;
+      var dl = dlSpeeds[i];
+      var ul = ulSpeeds[i];
+      var idle = 8 + Math.random() * 8;
+      var dlLat = idle + 3 + Math.random() * 12;
+      var ulLat = idle + 6 + Math.random() * 14;
+      var si = i % 3;
 
       entries.push({
-        test_status: 'complete',
-        starttime: new Date(epoch * 1000).toISOString(),
-        endtime: new Date((epoch + 42) * 1000).toISOString(),
-        runtime: 42,
-        download: { mbps: dl, pct_utilization: dl / 80 },
-        upload: { mbps: ul, pct_utilization: ul / 40 },
+        test_status: 'completed',
+        test_error: 'n/a',
+        starttime: epoch,
+        endtime: epoch + 42,
+        runtime: 42.0,
+        client_version: 'bbst v0.4.2',
+        download: {
+          server_url: 'https://' + servers[si] + '/download/10G.dat',
+          status: 'completed', mbps: dl,
+          pct_utilization: Math.round(dl / 80),
+          total_byte_rx: Math.round(dl * 1e6 / 8 * 42),
+          progress_pct: 100
+        },
+        upload: {
+          server_url: 'https://' + servers[si] + '/upload',
+          status: 'completed', mbps: ul,
+          pct_utilization: Math.round(ul / 40),
+          total_byte_tx: Math.round(ul * 1e6 / 8 * 42),
+          progress_pct: 100
+        },
         latency: {
+          host: servers[si],
           idle_avg: +idle.toFixed(1),
           download_avg: +dlLat.toFixed(1),
           upload_avg: +ulLat.toFixed(1),
           idle_jitter: +(0.5 + Math.random() * 2).toFixed(1),
           download_jitter: +(1 + Math.random() * 5).toFixed(1),
           upload_jitter: +(2 + Math.random() * 6).toFixed(1),
-          download_bufferbloat_grade: dlG,
-          upload_bufferbloat_grade: ulG
+          download_bufferbloat_grade: computeBBGrade(idle, dlLat),
+          upload_bufferbloat_grade: computeBBGrade(idle, ulLat)
         },
-        server: { host: servers[i % 3], city: ['Atlanta','New York','Washington DC'][i % 3], distance: ['680 km','1320 km','1100 km'][i % 3] },
-        client: { ip: '99.39.42.110', isp: 'AT&T Internet' },
-        epoch: epoch
+        server: { host: servers[si], city: cities[si], country: 'US', lat: '33.7490', lon: '-84.3880', distance: distances[si], isp: '' },
+        client: { ip: '99.39.42.110', isp: 'AT&T Internet', city: 'Orlando', country: 'US', lat: 28.5383, lon: -81.3792 },
+        test_options: {
+          client_mode: 'bbst', downstream_service_rate: 8000, upstream_service_rate: 4000,
+          num_streams_download: 8, num_streams_upload: 8
+        }
       });
     }
     return entries;
   })()
 };
 
-// Add epoch to latestResult for convenience
-MOCK.latestResult.epoch = Math.floor(new Date(MOCK.latestResult.starttime).getTime() / 1000);
+// Epoch is already the starttime (Unix epoch double)
+MOCK.latestResult.epoch = Math.floor(MOCK.latestResult.starttime);
 
 /* ===== State ===== */
 const TestState = { IDLE: 'idle', LATENCY: 'latency', DOWNLOAD: 'download', UPLOAD: 'upload', COMPLETE: 'complete' };
@@ -173,11 +248,8 @@ function toggleTheme() {
   localStorage.setItem('st-theme', next);
   updateThemeIcon();
   // Redraw charts
-  if (advancedOpen) {
-    renderHistoryChart();
-    if (realtimeSamples.dl.length > 0 || realtimeSamples.ul.length > 0) drawRealtimeChart('st-realtime-adv-canvas');
-  }
-  renderSparkline();
+  renderHistoryChart();
+  if (realtimeSamples.dl.length > 0 || realtimeSamples.ul.length > 0) drawRealtimeChart('st-realtime-adv-canvas');
 }
 
 function updateThemeIcon() {
@@ -190,6 +262,17 @@ function updateThemeIcon() {
 function initSidebar() {
   const btn = el('sidebarToggle');
   if (btn) btn.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
+}
+
+/* ===== Bufferbloat Grading (matches bbst_latency.c thresholds) ===== */
+function computeBBGrade(idleAvg, loadedAvg) {
+  if (idleAvg <= 0) return 'U';
+  var delta = loadedAvg - idleAvg;
+  var pctIncrease = (delta / idleAvg) * 100;
+  if (delta < 20 || pctIncrease < 50) return 'A';
+  if (pctIncrease < 150) return 'B';
+  if (pctIncrease < 300) return 'C';
+  return 'D';
 }
 
 /* ===== Bufferbloat Summary ===== */
@@ -216,6 +299,63 @@ function bbSummary(dlG, ulG) {
     if (ulR >= 3) msg += ' Upload quality degrades under heavy use.';
   }
   return msg;
+}
+
+/* ===== Bufferbloat Score Card (Advanced) ===== */
+function renderBufferbloatCard(lat) {
+  const dlG = lat.download_bufferbloat_grade;
+  const ulG = lat.upload_bufferbloat_grade;
+  const body = el('st-bb-body');
+  if (!body) return;
+
+  // Composite grade: worst of the two
+  const worst = gradeRank(dlG) > gradeRank(ulG) ? dlG : ulG;
+
+  // Stacked bar data
+  const scale = 200;
+  const idle = lat.idle_avg;
+  const dlDelta = Math.max(0, lat.download_avg - lat.idle_avg);
+  const ulDelta = Math.max(0, lat.upload_avg - lat.idle_avg);
+  const idlePct = (idle / scale * 100).toFixed(1);
+  const dlPct = (dlDelta / scale * 100).toFixed(1);
+  const ulPct = (ulDelta / scale * 100).toFixed(1);
+  const peak = Math.max(lat.download_avg, lat.upload_avg);
+
+  body.innerHTML =
+    '<div class="st-bb-top">' +
+      '<div class="st-bb-hero">' +
+        '<div class="st-bb-hero-grade" style="color:' + gradeColorRaw(worst) + ';border-color:' + gradeColorRaw(worst) + ';background:' + gradeTint(worst) + '">' + worst + '</div>' +
+        '<div class="st-bb-hero-label">Overall</div>' +
+      '</div>' +
+      '<div class="st-bb-rows">' +
+        '<div class="st-bb-detail-row">' +
+          '<span class="st-bb-detail-dir"><i class="fa-solid fa-arrow-down"></i> Download</span>' +
+          '<span class="st-bb-detail-grade" style="background:' + gradeTint(dlG) + ';color:' + gradeColorRaw(dlG) + '">' + dlG + '</span>' +
+          '<span class="st-bb-detail-lat">+' + dlDelta.toFixed(1) + ' ms latency under load</span>' +
+        '</div>' +
+        '<div class="st-bb-detail-row">' +
+          '<span class="st-bb-detail-dir"><i class="fa-solid fa-arrow-up"></i> Upload</span>' +
+          '<span class="st-bb-detail-grade" style="background:' + gradeTint(ulG) + ';color:' + gradeColorRaw(ulG) + '">' + ulG + '</span>' +
+          '<span class="st-bb-detail-lat">+' + ulDelta.toFixed(1) + ' ms latency under load</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    // Stacked bar
+    '<div class="st-bb-bar-wrap">' +
+          '<div class="st-bb-bar-track">' +
+            '<div class="st-bb-bar-seg idle" style="width:' + idlePct + '%"></div>' +
+            '<div class="st-bb-bar-seg dl" style="width:' + dlPct + '%"></div>' +
+            '<div class="st-bb-bar-seg ul" style="width:' + ulPct + '%"></div>' +
+          '</div>' +
+          '<div class="st-bb-bar-legend">' +
+            '<span><span class="st-bb-swatch idle"></span>' + idle.toFixed(1) + ' ms idle</span>' +
+            '<span><span class="st-bb-swatch dl"></span>+' + dlDelta.toFixed(1) + ' ms DL</span>' +
+            '<span><span class="st-bb-swatch ul"></span>+' + ulDelta.toFixed(1) + ' ms UL</span>' +
+            '<span style="color:var(--text-muted)">Peak ' + peak.toFixed(1) + ' ms</span>' +
+          '</div>' +
+    '</div>' +
+    // Summary
+    '<div class="st-bb-summary">' + bbSummary(dlG, ulG) + '</div>';
 }
 
 /* ===== Quality Assessment ===== */
@@ -247,8 +387,8 @@ function renderResults(result) {
   const dlMbps = result.download.mbps;
   const ulMbps = result.upload.mbps;
   const lat = result.latency;
-  const dlRate = MOCK.wan.service_rate_dl || 0;
-  const ulRate = MOCK.wan.service_rate_ul || 0;
+  const dlRate = MOCK.wan.service_rate_ds_mbps || 0;
+  const ulRate = MOCK.wan.service_rate_us_mbps || 0;
 
   // Speed values
   el('st-dl-value').textContent = formatSpeed(dlMbps);
@@ -256,15 +396,21 @@ function renderResults(result) {
   el('st-ul-value').textContent = formatSpeed(ulMbps);
   el('st-ul-unit').textContent = formatSpeedUnit(ulMbps);
 
-  // Grade pills (large)
+  // Grade pills in test card + hover tooltips
   const dlPill = el('st-dl-grade');
   dlPill.textContent = lat.download_bufferbloat_grade;
   dlPill.setAttribute('data-grade', lat.download_bufferbloat_grade);
-  el('st-dl-grade-label').textContent = 'Bufferbloat Grade';
+  updateGradeTooltip('st-dl-grade-tip', lat.download_bufferbloat_grade);
   const ulPill = el('st-ul-grade');
   ulPill.textContent = lat.upload_bufferbloat_grade;
   ulPill.setAttribute('data-grade', lat.upload_bufferbloat_grade);
-  el('st-ul-grade-label').textContent = 'Bufferbloat Grade';
+  updateGradeTooltip('st-ul-grade-tip', lat.upload_bufferbloat_grade);
+
+  // Idle latency in test card
+  el('st-latency-value').textContent = lat.idle_avg.toFixed(1);
+
+  // Bufferbloat Score card (advanced section)
+  renderBufferbloatCard(lat);
 
   // Utilization bars with prominent plan text
   if (dlRate > 0) {
@@ -291,13 +437,7 @@ function renderResults(result) {
     el('st-ul-util').style.display = 'none';
   }
 
-  // Latency bars (in their own card)
-  renderLatencyBars(lat);
-  el('st-latency-slim-card').style.display = '';
-  el('st-latency-slim-card').className = 'card st-latency-slim-card st-fade-in';
-
-  // BB summary
-  el('st-bb-summary').innerHTML = bbSummary(lat.download_bufferbloat_grade, lat.upload_bufferbloat_grade);
+  // Bufferbloat card is already rendered above (includes latency under load)
 
   // Show results
   el('st-results').style.display = '';
@@ -309,11 +449,18 @@ function renderResults(result) {
   // Connection info
   renderConnectionInfo(result);
 
-  // Quality
-  renderQuality(result);
+  // Draw throughput chart if we have realtime samples
+  if (realtimeSamples.dl.length > 0 || realtimeSamples.ul.length > 0) {
+    el('st-realtime-empty').style.display = 'none';
+    drawRealtimeChart('st-realtime-adv-canvas');
+    el('st-realtime-status').textContent = formatEpoch(Math.floor(result.starttime));
+    el('st-realtime-status').className = 'st-realtime-status';
+  } else {
+    el('st-realtime-empty').style.display = '';
+  }
 
-  // Sparkline
-  renderSparkline();
+  // History chart (always visible in basic view)
+  renderHistoryChart();
 
   // Advanced panels
   renderLatencyGrid(result);
@@ -322,41 +469,13 @@ function renderResults(result) {
 }
 
 /* ===== Latency Stacked Bar ===== */
-function renderLatencyBars(lat) {
-  // Fixed scale: 0-200ms so good latency looks small and reassuring
-  const scale = 200;
-  const idle = lat.idle_avg;
-  const dlDelta = Math.max(0, lat.download_avg - lat.idle_avg);
-  const ulDelta = Math.max(0, lat.upload_avg - lat.idle_avg);
-
-  el('st-lat-seg-idle').style.width = (idle / scale * 100).toFixed(1) + '%';
-  el('st-lat-seg-dl').style.width = (dlDelta / scale * 100).toFixed(1) + '%';
-  el('st-lat-seg-ul').style.width = (ulDelta / scale * 100).toFixed(1) + '%';
-
-  // Legend with values and bufferbloat grades
-  const dlGrade = lat.download_bufferbloat_grade;
-  const ulGrade = lat.upload_bufferbloat_grade;
-  el('st-lat-stacked-legend').innerHTML =
-    '<div class="lat-leg-row">' +
-      '<span><span class="lat-leg-swatch idle"></span>Idle ' + idle.toFixed(1) + ' ms</span>' +
-      '<span><span class="lat-leg-swatch dl"></span>DL +' + dlDelta.toFixed(1) + ' ms</span>' +
-      '<span><span class="lat-leg-swatch ul"></span>UL +' + ulDelta.toFixed(1) + ' ms</span>' +
-      '<span style="color:var(--text-muted)">Peak ' + Math.max(lat.download_avg, lat.upload_avg).toFixed(1) + ' ms</span>' +
-    '</div>' +
-    '<div class="lat-leg-row lat-leg-grades">' +
-      '<span class="lat-leg-grades-label">Bufferbloat Grade</span>' +
-      '<span>DL <span class="lat-leg-grade" style="background:' + gradeTint(dlGrade) + ';color:' + gradeColorRaw(dlGrade) + '">' + dlGrade + '</span></span>' +
-      '<span>UL <span class="lat-leg-grade" style="background:' + gradeTint(ulGrade) + ';color:' + gradeColorRaw(ulGrade) + '">' + ulGrade + '</span></span>' +
-    '</div>';
-}
-
 /* ===== Connection Info ===== */
 function renderConnectionInfo(result) {
   el('st-info-server').textContent = result.server.city;
   el('st-info-isp').textContent = result.client.isp;
   el('st-info-ip').textContent = result.client.ip;
-  const dlR = MOCK.wan.service_rate_dl;
-  const ulR = MOCK.wan.service_rate_ul;
+  const dlR = MOCK.wan.service_rate_ds_mbps;
+  const ulR = MOCK.wan.service_rate_us_mbps;
   if (dlR > 0 && ulR > 0) {
     const dlFmt = dlR >= 1000 ? (dlR/1000).toFixed(0) + 'G' : dlR + 'M';
     const ulFmt = ulR >= 1000 ? (ulR/1000).toFixed(0) + 'G' : ulR + 'M';
@@ -364,25 +483,23 @@ function renderConnectionInfo(result) {
   } else {
     el('st-info-plan').textContent = 'Not configured';
   }
-  // Convert distance to miles for countries that use imperial
-  const imperialCountries = ['US', 'GB', 'MM', 'LR'];
-  const clientCountry = result.client.country || '';
-  const distStr = result.server.distance || '';
-  if (distStr && imperialCountries.indexOf(clientCountry) !== -1) {
-    const kmMatch = distStr.match(/([\d.]+)\s*km/i);
-    if (kmMatch) {
-      const miles = Math.round(parseFloat(kmMatch[1]) * 0.621371);
-      el('st-info-distance').textContent = miles + ' mi';
+  // Distance is in km (number). Convert to miles for imperial countries.
+  var distKm = result.server.distance || 0;
+  if (distKm > 0) {
+    var imperialCountries = ['US', 'GB', 'MM', 'LR'];
+    if (imperialCountries.indexOf(result.client.country || '') !== -1) {
+      el('st-info-distance').textContent = Math.round(distKm * 0.621371) + ' mi';
     } else {
-      el('st-info-distance').textContent = distStr;
+      el('st-info-distance').textContent = Math.round(distKm) + ' km';
     }
   } else {
-    el('st-info-distance').textContent = distStr || '--';
+    el('st-info-distance').textContent = '--';
   }
   el('st-info-duration').textContent = result.runtime + 's';
   // Server candidates tested
-  if (result.server_selection && result.server_selection.length > 0) {
-    const count = result.server_selection.length;
+  var ss = result.server_selection && result.server_selection.servers;
+  if (ss && ss.length > 0) {
+    const count = ss.length;
     el('st-info-servers').textContent = count + ' server' + (count > 1 ? 's' : '') + ' evaluated';
   }
 }
@@ -571,7 +688,7 @@ function drawRealtimeChart(canvasId) {
 
   const maxT = Math.max(...allSamples.map(s => s.t), 10);
   // Pre-scale Y to service rate so user sees performance relative to plan
-  const serviceMax = Math.max(MOCK.wan.service_rate_dl || 0, MOCK.wan.service_rate_ul || 0);
+  const serviceMax = Math.max(MOCK.wan.service_rate_ds_mbps || 0, MOCK.wan.service_rate_us_mbps || 0);
   const yMax = serviceMax > 0 ? Math.ceil(serviceMax * 1.1 / 100) * 100 : Math.ceil(Math.max(...allSamples.map(s => s.mbps), 100) * 1.15 / 100) * 100;
   const xScale = cW / maxT;
   const yScale = cH / yMax;
@@ -618,8 +735,8 @@ function drawRealtimeChart(canvasId) {
   }
 
   // Contracted rate dashed lines
-  const dlRate = MOCK.wan.service_rate_dl;
-  const ulRate = MOCK.wan.service_rate_ul;
+  const dlRate = MOCK.wan.service_rate_ds_mbps;
+  const ulRate = MOCK.wan.service_rate_us_mbps;
   ctx.save();
   ctx.setLineDash([6, 4]);
   ctx.lineWidth = 1;
@@ -659,214 +776,10 @@ function drawRealtimeChart(canvasId) {
   }
 }
 
-/* ===== Sparkline ===== */
-function renderSparkline() {
-  const canvas = el('st-sparkline-canvas');
-  if (!canvas) return;
-
-  const tests = MOCK.history.filter(s => s.test_status === 'complete').slice(0, 10);
-  if (tests.length < 2) return;
-
-  el('st-sparkline-card').style.display = '';
-  el('st-sparkline-card').className = 'card st-sparkline-card st-fade-in st-fade-in-delay-4';
-  el('st-sparkline-count').textContent = '(last ' + tests.length + ')';
-
-  const dpr = window.devicePixelRatio || 1;
-  const wrap = canvas.parentElement;
-  const W = wrap.clientWidth;
-  const H = wrap.clientHeight;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const reversed = tests.slice().reverse(); // oldest first
-  const maxMbps = Math.max(...reversed.map(t => t.download.mbps));
-  const minMbps = Math.min(...reversed.map(t => t.download.mbps));
-  const range = maxMbps - minMbps || 1;
-
-  // Layout: leave room for Y labels on left, X labels on bottom
-  const yLabelW = 48;
-  const xLabelH = 20;
-  const padT = 8, padR = 24;
-  const plotL = yLabelW;
-  const plotT = padT;
-  const plotW = W - yLabelW - padR;
-  const plotH = H - padT - xLabelH - 4;
-
-  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const labelColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
-
-  // Y-axis: draw grid lines at min, mid, max
-  ctx.font = '10px "JetBrains Mono", monospace';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  const midMbps = (minMbps + maxMbps) / 2;
-  const yTicks = [maxMbps, midMbps, minMbps];
-  yTicks.forEach(val => {
-    const y = plotT + plotH - ((val - minMbps) / range) * plotH;
-    // Grid line
-    ctx.beginPath();
-    ctx.moveTo(plotL, y);
-    ctx.lineTo(plotL + plotW, y);
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // Label
-    ctx.fillStyle = labelColor;
-    ctx.fillText(formatSpeedLabel(val), plotL - 6, y);
-  });
-
-  // Download line + area fill
-  ctx.beginPath();
-  reversed.forEach((t, i) => {
-    const x = plotL + (i / (reversed.length - 1)) * plotW;
-    const y = plotT + plotH - ((t.download.mbps - minMbps) / range) * plotH;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = isDarkTheme() ? 'rgba(34,211,238,0.7)' : 'rgba(14,165,201,0.8)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Area fill under line
-  const lastX = plotL + ((reversed.length - 1) / (reversed.length - 1)) * plotW;
-  ctx.lineTo(lastX, plotT + plotH);
-  ctx.lineTo(plotL, plotT + plotH);
-  ctx.closePath();
-  ctx.fillStyle = isDarkTheme() ? 'rgba(34,211,238,0.08)' : 'rgba(14,165,201,0.12)';
-  ctx.fill();
-
-  // Dots with grade color + store coordinates for hover
-  var sparkPoints = [];
-  reversed.forEach((t, i) => {
-    const x = plotL + (i / (reversed.length - 1)) * plotW;
-    const y = plotT + plotH - ((t.download.mbps - minMbps) / range) * plotH;
-    ctx.beginPath();
-    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = gradeColorRaw(t.latency.download_bufferbloat_grade);
-    ctx.fill();
-    sparkPoints.push({ x: x, y: y, test: t });
-  });
-  canvas._sparkPoints = sparkPoints;
-
-  // X-axis: date labels
-  ctx.font = '9px "JetBrains Mono", monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = labelColor;
-  // Show first, middle, last date
-  const dateIndices = [0, Math.floor((reversed.length - 1) / 2), reversed.length - 1];
-  dateIndices.forEach(i => {
-    const x = plotL + (i / (reversed.length - 1)) * plotW;
-    const d = new Date(reversed[i].starttime);
-    const label = (d.getMonth() + 1) + '/' + d.getDate();
-    ctx.fillText(label, x, plotT + plotH + 4);
-  });
-}
-
 function formatSpeedLabel(mbps) {
   if (mbps >= 1000) return (mbps / 1000).toFixed(1) + 'G';
   return Math.round(mbps) + '';
 }
-
-/* ===== Sparkline Hover Tooltip ===== */
-(function() {
-  var bound = false;
-  var activeIdx = -1;
-
-  function bindSparklineHover() {
-    var canvas = document.getElementById('st-sparkline-canvas');
-    if (!canvas || bound) return;
-    bound = true;
-
-    canvas.addEventListener('mousemove', function(e) {
-      var points = canvas._sparkPoints;
-      if (!points || points.length === 0) return;
-
-      var rect = canvas.getBoundingClientRect();
-      var dpr = window.devicePixelRatio || 1;
-      var mx = (e.clientX - rect.left) * (canvas.width / rect.width) / dpr;
-      var my = (e.clientY - rect.top) * (canvas.height / rect.height) / dpr;
-
-      // Find closest point within 20px
-      var closest = -1, closestDist = 20;
-      for (var i = 0; i < points.length; i++) {
-        var dx = mx - points[i].x;
-        var dy = my - points[i].y;
-        var d = Math.sqrt(dx * dx + dy * dy);
-        if (d < closestDist) { closestDist = d; closest = i; }
-      }
-
-      var tt = document.getElementById('st-spark-tooltip');
-      if (closest === -1) {
-        tt.style.display = 'none';
-        activeIdx = -1;
-        return;
-      }
-
-      if (closest === activeIdx) return; // same point, no update needed
-      activeIdx = closest;
-
-      var pt = points[closest];
-      var t = pt.test;
-      var d = new Date(t.starttime);
-      var dateStr = (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
-        d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
-      var dlSpeed = t.download.mbps >= 1000
-        ? (t.download.mbps / 1000).toFixed(2) + ' Gbps'
-        : t.download.mbps + ' Mbps';
-      var ulSpeed = t.upload.mbps >= 1000
-        ? (t.upload.mbps / 1000).toFixed(2) + ' Gbps'
-        : t.upload.mbps + ' Mbps';
-      var dlGrade = t.latency.download_bufferbloat_grade;
-      var ulGrade = t.latency.upload_bufferbloat_grade;
-
-      tt.innerHTML =
-        '<div class="spark-tt-speed">' + dlSpeed +
-          ' <span class="spark-tt-grade" style="background:' + gradeTint(dlGrade) + ';color:' + gradeColorRaw(dlGrade) + '">' + dlGrade + '</span></div>' +
-        '<div class="spark-tt-row">UL: ' + ulSpeed +
-          ' <span class="spark-tt-grade" style="background:' + gradeTint(ulGrade) + ';color:' + gradeColorRaw(ulGrade) + '">' + ulGrade + '</span></div>' +
-        '<div class="spark-tt-row">Latency: ' + t.latency.idle_avg.toFixed(1) + ' ms idle</div>' +
-        '<div class="spark-tt-row" style="color:var(--text-muted)">' + dateStr + '</div>';
-
-      tt.style.display = '';
-
-      // Position: above the point, centered horizontally
-      var wrap = canvas.parentElement;
-      var cssX = pt.x;
-      var cssY = pt.y;
-      var ttW = tt.offsetWidth;
-      var ttH = tt.offsetHeight;
-      var tx = cssX - ttW / 2;
-      var ty = cssY - ttH - 12;
-      // Clamp to wrapper bounds
-      if (tx < 4) tx = 4;
-      if (tx + ttW > wrap.clientWidth - 4) tx = wrap.clientWidth - ttW - 4;
-      if (ty < 0) ty = cssY + 16; // flip below if no room above
-      tt.style.left = tx + 'px';
-      tt.style.top = ty + 'px';
-    });
-
-    canvas.addEventListener('mouseout', function() {
-      document.getElementById('st-spark-tooltip').style.display = 'none';
-      activeIdx = -1;
-    });
-  }
-
-  // Bind after DOM ready, and re-check periodically (canvas may not exist yet)
-  document.addEventListener('DOMContentLoaded', function() {
-    bindSparklineHover();
-    // Also try after a delay in case sparkline renders later
-    setTimeout(bindSparklineHover, 1000);
-  });
-
-  // Expose so we can rebind if needed
-  window.bindSparklineHover = bindSparklineHover;
-})();
 
 /* ===== History Chart ===== */
 function setHistoryWindow(days) {
@@ -879,8 +792,8 @@ function setHistoryWindow(days) {
 }
 
 function setHistoryMode(mode) {
-  const dlRate = MOCK.wan.service_rate_dl || 0;
-  const ulRate = MOCK.wan.service_rate_ul || 0;
+  const dlRate = MOCK.wan.service_rate_ds_mbps || 0;
+  const ulRate = MOCK.wan.service_rate_us_mbps || 0;
   if (mode === 'pct' && (!dlRate || !ulRate)) return;
   historyMode = mode;
   el('sth-btn-pct').classList.toggle('active', mode === 'pct');
@@ -892,8 +805,8 @@ function renderHistoryChart() {
   const canvas = el('st-history-canvas');
   if (!canvas) return;
 
-  const dlRate = MOCK.wan.service_rate_dl || 0;
-  const ulRate = MOCK.wan.service_rate_ul || 0;
+  const dlRate = MOCK.wan.service_rate_ds_mbps || 0;
+  const ulRate = MOCK.wan.service_rate_us_mbps || 0;
   const hasRates = dlRate > 0 && ulRate > 0;
 
   // Enable/disable pct button
@@ -906,7 +819,7 @@ function renderHistoryChart() {
   el('sth-btn-raw').textContent = maxRate > 999 ? 'Gbps' : 'Mbps';
 
   // Filter tests
-  let tests = MOCK.history.filter(s => s.test_status === 'complete');
+  let tests = MOCK.history.filter(s => s.test_status === 'completed');
   if (historyWindow > 0) tests = tests.slice(0, historyWindow);
   tests = tests.slice().reverse(); // oldest first for drawing
   const n = tests.length;
@@ -927,6 +840,16 @@ function renderHistoryChart() {
   canvas.style.height = H + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
+
+  // Sync overlay canvas size (flows in document, overlaps main canvas via negative margin)
+  const overlay = el('st-history-overlay');
+  if (overlay) {
+    overlay.width = canvas.width;
+    overlay.height = canvas.height;
+    overlay.style.width = W + 'px';
+    overlay.style.height = H + 'px';
+    overlay.style.marginTop = '-' + H + 'px';
+  }
 
   const pad = { top: 10, right: 8, bottom: 50, left: 8 };
   const cW = W - pad.left - pad.right;
@@ -988,10 +911,14 @@ function renderHistoryChart() {
     ctx.setLineDash([]);
   }
 
-  // Bars
-  const groupW = cW / n;
+  // Bars - fixed max width so few samples don't produce fat bars
+  const maxGroupW = 48;
+  const groupW = Math.min(maxGroupW, cW / n);
   const gap = groupW * 0.22;
   const barW = Math.max(2, (groupW - gap * 2) / 2 - 1.5);
+  // Center the bar cluster when fewer tests don't fill the chart
+  const totalBarsW = groupW * n;
+  const barsOffsetX = (cW - totalBarsW) / 2;
   const baseY = pad.top + cH;
   const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const labelEvery = Math.max(1, Math.floor(n / 7));
@@ -1003,7 +930,7 @@ function renderHistoryChart() {
     const ulMbps = st.upload.mbps;
     const dlVal = usePct ? Math.min(100, dlMbps / dlRate * 100) : dlMbps;
     const ulVal = usePct ? Math.min(100, ulMbps / ulRate * 100) : ulMbps;
-    const gx = pad.left + i * groupW + gap;
+    const gx = pad.left + barsOffsetX + i * groupW + gap;
     const dlH = Math.max(2, dlVal * yScale);
     const ulH = Math.max(2, ulVal * yScale);
     const dlX = gx;
@@ -1027,7 +954,7 @@ function renderHistoryChart() {
     ctx.fill();
 
     // X labels
-    const epoch = st.epoch || Math.floor(new Date(st.starttime).getTime() / 1000);
+    const epoch = st.epoch || Math.floor(st.starttime);
     if (i === 0 || i === n - 1 || i % labelEvery === 0) {
       const d = new Date(epoch * 1000);
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -1039,6 +966,7 @@ function renderHistoryChart() {
 
     canvas._bars.push({
       x1: gx, x2: gx + barW * 2 + 1.5 + gap,
+      dlX, dlH, ulX, ulH, barW, baseY,
       dlVal, ulVal, usePct, st, epoch
     });
   });
@@ -1047,7 +975,7 @@ function renderHistoryChart() {
   if (!canvas._sthEvents) {
     canvas._sthEvents = true;
     canvas.addEventListener('mousemove', onHistoryMouseMove);
-    canvas.addEventListener('mouseleave', () => { el('st-history-tooltip').style.display = 'none'; });
+    canvas.addEventListener('mouseleave', () => { el('st-history-tooltip').style.display = 'none'; stopBarHighlight(); });
     canvas.addEventListener('click', onHistoryClick);
   }
 
@@ -1057,16 +985,93 @@ function renderHistoryChart() {
   }
 }
 
+/* ===== History Bar Highlight / Pulse ===== */
+let _hlBar = null, _hlRaf = null;
+
+function startBarHighlight(bar) {
+  if (_hlBar === bar) return;
+  _hlBar = bar;
+  if (!_hlRaf) pulseHighlight();
+}
+
+function stopBarHighlight() {
+  _hlBar = null;
+  if (_hlRaf) { cancelAnimationFrame(_hlRaf); _hlRaf = null; }
+  const ov = el('st-history-overlay');
+  if (ov) {
+    const ctx = ov.getContext('2d');
+    ctx.clearRect(0, 0, ov.width, ov.height);
+  }
+}
+
+function pulseHighlight() {
+  const ov = el('st-history-overlay');
+  const bar = _hlBar;
+  if (!ov || !bar) { _hlRaf = null; return; }
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = ov.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, ov.width / dpr, ov.height / dpr);
+
+  // Pulse: alpha oscillates between 0.4 and 0.9
+  const t = (Math.sin(Date.now() / 400) + 1) / 2;
+  const alpha = 0.4 + t * 0.5;
+
+  const r = 3;
+  const expand = 3;
+
+  // DL bar glow
+  ctx.save();
+  ctx.shadowColor = 'rgba(34,211,238,' + alpha + ')';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = 'rgba(34,211,238,' + (alpha * 0.55) + ')';
+  roundRect(ctx, bar.dlX - expand, bar.baseY - bar.dlH - expand, bar.barW + expand * 2, bar.dlH + expand, r);
+  ctx.fill();
+  // Double-draw for stronger glow
+  ctx.fill();
+  ctx.restore();
+
+  // UL bar glow
+  ctx.save();
+  ctx.shadowColor = 'rgba(52,211,153,' + alpha + ')';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = 'rgba(52,211,153,' + (alpha * 0.55) + ')';
+  roundRect(ctx, bar.ulX - expand, bar.baseY - bar.ulH - expand, bar.barW + expand * 2, bar.ulH + expand, r);
+  ctx.fill();
+  ctx.fill();
+  ctx.restore();
+
+  _hlRaf = requestAnimationFrame(pulseHighlight);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 function onHistoryMouseMove(e) {
   const canvas = e.currentTarget;
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const bar = (canvas._bars || []).find(b => mx >= b.x1 && mx <= b.x2);
   const tt = el('st-history-tooltip');
-  if (!bar) { tt.style.display = 'none'; return; }
+  if (!bar) {
+    tt.style.display = 'none';
+    stopBarHighlight();
+    return;
+  }
+  startBarHighlight(bar);
 
   const st = bar.st;
-  const epoch = bar.epoch || Math.floor(new Date(st.starttime).getTime() / 1000);
+  const epoch = bar.epoch || Math.floor(st.starttime);
   const d = new Date(epoch * 1000);
   const date = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -1078,15 +1083,14 @@ function onHistoryMouseMove(e) {
     `<div class="sth-tt-server">${st.server.host || st.server.city}</div>` +
     `<div class="sth-tt-row"><span class="sth-tt-dl">DL</span> ${fmtDL} <span class="sth-tt-grade" data-grade="${st.latency.download_bufferbloat_grade}">${st.latency.download_bufferbloat_grade}</span></div>` +
     `<div class="sth-tt-row"><span class="sth-tt-ul">UL</span> ${fmtUL} <span class="sth-tt-grade" data-grade="${st.latency.upload_bufferbloat_grade}">${st.latency.upload_bufferbloat_grade}</span></div>` +
-    `<div class="sth-tt-lat">${st.latency.idle_avg.toFixed(0)} ms idle / ${st.latency.download_avg.toFixed(0)} ms loaded</div>`;
+    `<div class="sth-tt-lat">${st.latency.idle_avg.toFixed(0)} ms idle</div>` +
+    `<div class="sth-tt-lat">DL ${st.latency.download_avg.toFixed(0)} ms / UL ${st.latency.upload_avg.toFixed(0)} ms loaded</div>`;
   tt.style.display = 'block';
 
-  const wrap = canvas.parentElement;
-  const wRect = wrap.getBoundingClientRect();
   const ttW = 170;
-  let tx = e.clientX - wRect.left + 12;
-  let ty = e.clientY - wRect.top - 10;
-  if (tx + ttW > wRect.width - 4) tx = e.clientX - wRect.left - ttW - 12;
+  let tx = e.clientX + 12;
+  let ty = e.clientY - 10;
+  if (tx + ttW > window.innerWidth - 8) tx = e.clientX - ttW - 12;
   if (ty < 0) ty = 4;
   tt.style.left = tx + 'px';
   tt.style.top = ty + 'px';
@@ -1130,14 +1134,14 @@ function initHistoryScroll() {
 function renderDetailPanel(result) {
   const panel = el('st-detail-card');
   panel.style.display = '';
-  const epoch = result.epoch || Math.floor(new Date(result.starttime).getTime() / 1000);
+  const epoch = result.epoch || Math.floor(result.starttime);
   el('st-detail-title').textContent = 'Test Detail: ' + new Date(epoch * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
   const dlMbps = result.download.mbps;
   const ulMbps = result.upload.mbps;
   const lat = result.latency;
-  const dlRate = MOCK.wan.service_rate_dl;
-  const ulRate = MOCK.wan.service_rate_ul;
+  const dlRate = MOCK.wan.service_rate_ds_mbps;
+  const ulRate = MOCK.wan.service_rate_us_mbps;
 
   el('st-detail-body').innerHTML = `
     <div class="st-detail-section">
@@ -1163,7 +1167,7 @@ function renderDetailPanel(result) {
       <div class="st-detail-heading">Server</div>
       <div class="st-detail-row"><span class="st-detail-key">Host</span><span class="st-detail-val">${result.server.host || '--'}</span></div>
       <div class="st-detail-row"><span class="st-detail-key">City</span><span class="st-detail-val">${result.server.city || '--'}</span></div>
-      <div class="st-detail-row"><span class="st-detail-key">Distance</span><span class="st-detail-val">${result.server.distance || '--'}</span></div>
+      <div class="st-detail-row"><span class="st-detail-key">Distance</span><span class="st-detail-val">${result.server.distance ? Math.round(result.server.distance * 0.621371) + ' mi' : '--'}</span></div>
     </div>
   `;
 }
@@ -1195,7 +1199,6 @@ function toggleAdvanced() {
     panel.style.display = '';
     btn.classList.add('open');
     text.textContent = 'Hide Advanced Details';
-    renderHistoryChart();
     if (realtimeSamples.dl.length > 0 || realtimeSamples.ul.length > 0) {
       drawRealtimeChart('st-realtime-adv-canvas');
     }
@@ -1236,7 +1239,7 @@ function startTest() {
   el('st-live-speed').style.display = '';
 
   // Fade out previous results before hiding
-  var fadeEls = [el('st-results'), el('st-latency-slim-card')];
+  var fadeEls = [el('st-results')];
   fadeEls.forEach(function(elem) {
     if (elem && elem.style.display !== 'none') {
       elem.style.transition = 'opacity 0.6s ease-out';
@@ -1251,18 +1254,20 @@ function startTest() {
 
   el('st-phase-bar').style.display = 'flex';
   el('st-realtime-inline').style.display = 'none';
-  el('st-realtime-card').style.display = 'none';
-  el('st-bb-summary').innerHTML = '';
+  el('st-realtime-empty').style.display = '';
+  // Clear the throughput canvas
+  var rtCanvas = el('st-realtime-adv-canvas');
+  if (rtCanvas) { var ctx = rtCanvas.getContext('2d'); ctx.clearRect(0, 0, rtCanvas.width, rtCanvas.height); }
 
   // Reset phases
   document.querySelectorAll('.st-phase').forEach(p => { p.classList.remove('active', 'done'); });
 
   // Reset utilization bar widths
-  el('st-dl-util-fill').style.width = '0%';
-  el('st-ul-util-fill').style.width = '0%';
-  el('st-lat-seg-idle').style.width = '0%';
-  el('st-lat-seg-dl').style.width = '0%';
-  el('st-lat-seg-ul').style.width = '0%';
+  if (el('st-dl-util-fill')) el('st-dl-util-fill').style.width = '0%';
+  if (el('st-ul-util-fill')) el('st-ul-util-fill').style.width = '0%';
+  if (el('st-lat-seg-idle')) el('st-lat-seg-idle').style.width = '0%';
+  if (el('st-lat-seg-dl')) el('st-lat-seg-dl').style.width = '0%';
+  if (el('st-lat-seg-ul')) el('st-lat-seg-ul').style.width = '0%';
 
   // Reset real-time samples
   realtimeSamples = { dl: [], ul: [] };
@@ -1284,9 +1289,24 @@ function startTest() {
   el('st-go-subtitle').style.display = '';
   el('st-go-subtitle').textContent = 'Evaluating servers';
 
-  // Server race config from mock data
-  var servers = MOCK.latestResult.server_selection.map(function(s) {
-    return { name: s.city, latency: s.latency_ms, selected: s.selected };
+  // Server race config from mock data (real schema: server_selection.servers[])
+  var ssList = MOCK.latestResult.server_selection.servers;
+  var cityLookup = {
+    'atl': 'Atlanta', 'nyc': 'New York', 'dc': 'Washington DC', 'chi': 'Chicago',
+    'dal': 'Dallas', 'den': 'Denver', 'lax': 'Los Angeles', 'sfo': 'San Francisco',
+    'sea': 'Seattle', 'mia': 'Miami', 'bos': 'Boston', 'phx': 'Phoenix',
+    'hou': 'Houston', 'min': 'Minneapolis', 'stl': 'St. Louis', 'det': 'Detroit',
+    'pit': 'Pittsburgh', 'clt': 'Charlotte', 'orl': 'Orlando', 'tam': 'Tampa',
+    'jax': 'Jacksonville', 'nas': 'Nashville', 'slc': 'Salt Lake City',
+    'kc': 'Kansas City', 'ind': 'Indianapolis', 'col': 'Columbus', 'ral': 'Raleigh',
+    'pdx': 'Portland', 'san': 'San Diego', 'sac': 'Sacramento', 'lv': 'Las Vegas'
+  };
+  var servers = ssList.map(function(s) {
+    // Extract city abbreviation from download_url hostname, resolve to full name
+    var host = s.download_url.replace(/^https?:\/\//, '').split('/')[0];
+    var abbr = host.replace(/speedtest-/, '').replace(/\.adtran\.net.*/, '').toLowerCase();
+    var city = cityLookup[abbr] || (abbr.charAt(0).toUpperCase() + abbr.slice(1));
+    return { name: city, latency: s.latency, selected: s.selected === 'yes' };
   });
   // Sort by latency so fastest finishes first
   servers.sort(function(a, b) { return a.latency - b.latency; });
@@ -1575,25 +1595,41 @@ function completeTest() {
   el('st-go-subtitle').textContent = 'Tap to run again';
 
   // Generate a varied new result based on service rates (not previous result, to avoid drift)
-  const baseDl = MOCK.wan.service_rate_dl * (0.85 + Math.random() * 0.15); // 85-100% of plan
-  const baseUl = MOCK.wan.service_rate_ul * (0.85 + Math.random() * 0.15);
+  const baseDl = MOCK.wan.service_rate_ds_mbps * (0.85 + Math.random() * 0.15); // 85-100% of plan
+  const baseUl = MOCK.wan.service_rate_us_mbps * (0.85 + Math.random() * 0.15);
   const baseIdle = 6 + Math.random() * 8; // 6-14ms
   const baseDlLat = baseIdle + 2 + Math.random() * 12;
   const baseUlLat = baseIdle + 4 + Math.random() * 16;
-  const grades = ['A','A','A','A','B','B','B','C'];
-  const dlG = grades[Math.floor(Math.random() * grades.length)];
-  const ulG = grades[Math.floor(Math.random() * grades.length)];
+  const dlG = computeBBGrade(baseIdle, baseDlLat);
+  const ulG = computeBBGrade(baseIdle, baseUlLat);
 
-  const now = new Date();
+  const nowEpoch = Date.now() / 1000;
+  const dlMbps = Math.round(baseDl);
+  const ulMbps = Math.round(baseUl);
   const newResult = {
-    test_status: 'complete',
-    starttime: now.toISOString(),
-    endtime: new Date(now.getTime() + 42000).toISOString(),
-    epoch: Math.floor(now.getTime() / 1000),
-    runtime: 42,
-    download: { mbps: Math.round(baseDl), pct_utilization: +(baseDl / MOCK.wan.service_rate_dl * 100).toFixed(1) },
-    upload: { mbps: Math.round(baseUl), pct_utilization: +(baseUl / MOCK.wan.service_rate_ul * 100).toFixed(1) },
+    test_status: 'completed',
+    test_error: 'n/a',
+    starttime: nowEpoch,
+    endtime: nowEpoch + 42,
+    epoch: Math.floor(nowEpoch),
+    runtime: 42.0,
+    client_version: 'bbst v0.4.2',
+    download: {
+      server_url: MOCK.latestResult.download.server_url,
+      status: 'completed', mbps: dlMbps,
+      pct_utilization: Math.round(baseDl / MOCK.wan.service_rate_ds_mbps * 100),
+      total_byte_rx: Math.round(dlMbps * 1e6 / 8 * 42),
+      progress_pct: 100
+    },
+    upload: {
+      server_url: MOCK.latestResult.upload.server_url,
+      status: 'completed', mbps: ulMbps,
+      pct_utilization: Math.round(baseUl / MOCK.wan.service_rate_us_mbps * 100),
+      total_byte_tx: Math.round(ulMbps * 1e6 / 8 * 42),
+      progress_pct: 100
+    },
     latency: {
+      host: MOCK.latestResult.latency.host,
       idle_avg: +baseIdle.toFixed(1),
       download_avg: +baseDlLat.toFixed(1),
       upload_avg: +baseUlLat.toFixed(1),
@@ -1613,81 +1649,35 @@ function completeTest() {
   MOCK.history.unshift(newResult);
   MOCK.latestResult = newResult;
 
-  // Render results
-  renderResults(newResult);
-
-  // Animate inline chart flying down to the advanced section (ghost clone technique)
+  // Fade out inline chart, then fade in throughput card
   var inlineChart = el('st-realtime-inline');
-  var advCard = el('st-realtime-card');
+  var throughputCard = el('st-realtime-card');
 
-  // Capture the inline chart's current viewport position
-  var srcRect = inlineChart.getBoundingClientRect();
+  // Fade out inline chart over 1.2s
+  inlineChart.style.transition = 'opacity 1.2s ease-out';
+  inlineChart.style.opacity = '0';
 
-  // Hide inline immediately
-  inlineChart.style.display = 'none';
+  // After fade-out completes, clean up and render
+  setTimeout(function() {
+    inlineChart.style.display = 'none';
+    inlineChart.style.transition = '';
+    inlineChart.style.opacity = '';
 
-  // Show advanced card (hidden visually until clone arrives) and draw its canvas
-  advCard.style.display = '';
-  advCard.style.opacity = '0';
-  drawRealtimeChart('st-realtime-adv-canvas');
-
-  // Measure destination position
-  var destRect = advCard.getBoundingClientRect();
-
-  // Create a ghost clone at the source position
-  var ghost = inlineChart.cloneNode(true);
-  ghost.style.display = '';
-  Object.assign(ghost.style, {
-    position: 'fixed',
-    left: srcRect.left + 'px',
-    top: srcRect.top + 'px',
-    width: srcRect.width + 'px',
-    height: srcRect.height + 'px',
-    zIndex: '9000',
-    pointerEvents: 'none',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    boxShadow: '0 8px 32px rgba(34, 211, 238, 0.3)',
-    background: 'var(--card-bg)',
-    margin: '0',
-    padding: '8px 4px 4px',
-    borderTop: 'none'
-  });
-  document.body.appendChild(ghost);
-
-  // Compute the delta from source to destination
-  var dx = destRect.left - srcRect.left;
-  var dy = destRect.top - srcRect.top;
-  var scaleX = destRect.width / srcRect.width;
-  var scaleY = destRect.height / srcRect.height;
-  var dist = Math.sqrt(dx * dx + dy * dy);
-  var dur = Math.min(2400, Math.max(1200, (dist / 160) * 1000));
-
-  // Animate the ghost flying to the destination using WAAPI
-  var anim = ghost.animate(
-    [
-      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-      { transform: 'translate(' + dx + 'px, ' + dy + 'px) scale(' + scaleX + ', ' + scaleY + ')', opacity: 0.7 }
-    ],
-    {
-      duration: dur,
-      easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
-      fill: 'forwards'
-    }
-  );
-
-  anim.onfinish = function() {
-    ghost.remove();
-    advCard.style.opacity = '1';
-    // Brief highlight glow on arrival
-    advCard.classList.add('highlight');
-    setTimeout(function() { advCard.classList.remove('highlight'); }, 1000);
-  };
-
-  // Redraw advanced charts
-  if (advancedOpen) {
+    // Render all results and charts
+    renderResults(newResult);
     renderHistoryChart();
-  }
+
+    // Prepare throughput card data
+    el('st-realtime-empty').style.display = 'none';
+    el('st-realtime-status').textContent = 'just now';
+    el('st-realtime-status').className = 'st-realtime-status';
+    drawRealtimeChart('st-realtime-adv-canvas');
+
+    // Trigger CSS fade-in (1.5s delay + 1.8s fade built into the class)
+    throughputCard.classList.remove('st-appear');
+    void throughputCard.offsetWidth;
+    throughputCard.classList.add('st-appear');
+  }, 1300);
 
   // Reset state
   testRAF = null;
@@ -1702,31 +1692,28 @@ function init() {
   initTheme();
   initSidebar();
 
-  // Restore advanced state
-  advancedOpen = localStorage.getItem('st-advanced') === '1';
-  if (advancedOpen) {
-    el('st-advanced').style.display = '';
-    el('st-advanced-toggle').classList.add('open');
-    el('st-advanced-toggle-text').textContent = 'Hide Advanced Details';
-  }
+  // Always start with advanced hidden
+  advancedOpen = false;
+  localStorage.setItem('st-advanced', '0');
+  el('st-advanced').style.display = 'none';
+  el('st-advanced-toggle').classList.remove('open');
+  el('st-advanced-toggle-text').textContent = 'Show Advanced Details';
 
   // Pulse GO button
   el('st-go-btn').classList.add('pulsing');
 
   // Show last result
-  if (MOCK.latestResult && MOCK.latestResult.test_status === 'complete') {
+  if (MOCK.latestResult && MOCK.latestResult.test_status === 'completed') {
     renderResults(MOCK.latestResult);
   }
 
-  // Init history chart if advanced is open
-  if (advancedOpen) {
-    renderHistoryChart();
-  }
+  // Init history chart (always visible in basic view)
+  renderHistoryChart();
 
-  // Show advanced realtime chart if we have samples (inline only shown during test)
+  // Draw throughput chart if we have samples from a previous test, otherwise show empty state
   if (realtimeSamples.dl.length > 0 || realtimeSamples.ul.length > 0) {
-    el('st-realtime-card').style.display = '';
-    if (advancedOpen) drawRealtimeChart('st-realtime-adv-canvas');
+    el('st-realtime-empty').style.display = 'none';
+    drawRealtimeChart('st-realtime-adv-canvas');
   }
 
   // Init history scroll
@@ -1742,10 +1729,155 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Resize handler
 window.addEventListener('resize', () => {
-  if (advancedOpen) {
-    renderHistoryChart();
-    if (realtimeSamples.dl.length > 0 || realtimeSamples.ul.length > 0) drawRealtimeChart('st-realtime-adv-canvas');
+  renderHistoryChart();
+  if (el('st-realtime-empty') && el('st-realtime-empty').style.display === 'none') {
+    drawRealtimeChart('st-realtime-adv-canvas');
   }
   if (currentState !== TestState.IDLE && el('st-realtime-inline').style.display !== 'none') drawRealtimeChart();
-  renderSparkline();
 });
+
+/* =============================================================================
+   WAN Shaper Configuration Modal
+   Matches SmartOS SQM shaper config (srg-wan-shaper.js)
+   UCI: sqm.wan.enabled, sqm.wan.download (kbps), sqm.wan.upload (kbps),
+        sqm.wan.qdisc (cake|fq_codel), sqm.wan.script
+   ============================================================================= */
+
+// Mock shaper config state (would be UCI sqm.wan in production)
+var shaperConfig = {
+  enabled: false,
+  download: 0,   // kbps
+  upload: 0,     // kbps
+  qdisc: 'fq_codel',
+  script: 'simple.qos'
+};
+
+function openShaperModal() {
+  var overlay = el('shaper-overlay');
+  overlay.style.display = '';
+
+  // Populate from current config
+  el('shaper-enabled').checked = shaperConfig.enabled;
+  el('shaper-enabled-text').textContent = shaperConfig.enabled ? 'Enabled' : 'Disabled';
+  el('shaper-warning').style.display = shaperConfig.enabled ? '' : 'none';
+  el('shaper-dl-rate').value = shaperConfig.download > 0 ? Math.round(shaperConfig.download / 1000) : '';
+  el('shaper-ul-rate').value = shaperConfig.upload > 0 ? Math.round(shaperConfig.upload / 1000) : '';
+  el('shaper-source').value = 'manual';
+  el('shaper-derived-info').style.display = 'none';
+
+  // Disable fields if shaper is off
+  updateShaperFieldState();
+
+  // Close any open grade tooltips
+  document.querySelectorAll('.st-grade-tooltip').forEach(function(t) { t.style.display = 'none'; });
+
+  // Escape key handler
+  document.addEventListener('keydown', shaperEscHandler);
+}
+
+function closeShaperModal() {
+  el('shaper-overlay').style.display = 'none';
+  document.removeEventListener('keydown', shaperEscHandler);
+  // Re-enable tooltip CSS hover
+  document.querySelectorAll('.st-grade-tooltip').forEach(function(t) { t.style.display = ''; });
+}
+
+function shaperEscHandler(e) {
+  if (e.key === 'Escape') closeShaperModal();
+}
+
+function onShaperToggle() {
+  var enabled = el('shaper-enabled').checked;
+  el('shaper-enabled-text').textContent = enabled ? 'Enabled' : 'Disabled';
+  el('shaper-warning').style.display = enabled ? '' : 'none';
+  updateShaperFieldState();
+}
+
+function updateShaperFieldState() {
+  var enabled = el('shaper-enabled').checked;
+  var fields = ['shaper-source', 'shaper-dl-rate', 'shaper-ul-rate'];
+  fields.forEach(function(id) {
+    el(id).disabled = !enabled;
+    el(id).style.opacity = enabled ? '1' : '0.4';
+  });
+}
+
+function onShaperSourceChange() {
+  var source = el('shaper-source').value;
+  var info = el('shaper-derived-info');
+  var dlInput = el('shaper-dl-rate');
+  var ulInput = el('shaper-ul-rate');
+
+  if (source === 'service') {
+    // 90% of provisioned service rate
+    var dlRate = MOCK.wan.service_rate_ds_mbps;
+    var ulRate = MOCK.wan.service_rate_us_mbps;
+    if (dlRate > 0 && ulRate > 0) {
+      var dlShaped = Math.floor(dlRate * 0.9);
+      var ulShaped = Math.floor(ulRate * 0.9);
+      dlInput.value = dlShaped;
+      ulInput.value = ulShaped;
+      info.textContent = 'Using 90% of service rate: ' + dlRate + ' Mbps DL, ' + ulRate + ' Mbps UL';
+      info.style.display = '';
+    } else {
+      info.textContent = 'Service rates not configured in UCI (network.wan.service_rate_ds_mbps).';
+      info.style.display = '';
+    }
+    dlInput.readOnly = true;
+    ulInput.readOnly = true;
+  } else if (source === 'speedtest') {
+    // Max observed across all history (matches wan_config.lua get_rates)
+    var maxDl = 0, maxUl = 0;
+    MOCK.history.forEach(function(t) {
+      if (t.test_status === 'completed') {
+        if (t.download.mbps > maxDl) maxDl = t.download.mbps;
+        if (t.upload.mbps > maxUl) maxUl = t.upload.mbps;
+      }
+    });
+    if (MOCK.latestResult && MOCK.latestResult.test_status === 'completed') {
+      if (MOCK.latestResult.download.mbps > maxDl) maxDl = MOCK.latestResult.download.mbps;
+      if (MOCK.latestResult.upload.mbps > maxUl) maxUl = MOCK.latestResult.upload.mbps;
+    }
+    dlInput.value = Math.floor(maxDl);
+    ulInput.value = Math.floor(maxUl);
+    info.textContent = 'Using maximum observed speeds from ' + MOCK.history.length + ' historical tests.';
+    info.style.display = '';
+    dlInput.readOnly = true;
+    ulInput.readOnly = true;
+  } else {
+    // Manual
+    info.style.display = 'none';
+    dlInput.readOnly = false;
+    ulInput.readOnly = false;
+  }
+}
+
+function saveShaperConfig() {
+  var enabled = el('shaper-enabled').checked;
+  var dlMbps = parseInt(el('shaper-dl-rate').value) || 0;
+  var ulMbps = parseInt(el('shaper-ul-rate').value) || 0;
+
+  shaperConfig.enabled = enabled;
+  shaperConfig.download = dlMbps * 1000; // Convert to kbps for UCI
+  shaperConfig.upload = ulMbps * 1000;
+
+  // In production: $uci.$sync('sqm'), set values, $uci.$save()
+  // Also toggle firewall.@defaults[0].flow_offloading = enabled ? 0 : 1
+  console.log('Shaper config saved (mock):', JSON.stringify(shaperConfig));
+
+  closeShaperModal();
+
+  // Show brief confirmation
+  var btn = el('st-go-subtitle');
+  if (btn) {
+    var prev = btn.textContent;
+    btn.textContent = enabled
+      ? 'Shaper enabled: ' + dlMbps + '/' + ulMbps + ' Mbps'
+      : 'Shaper disabled';
+    btn.style.color = 'var(--accent-amber)';
+    setTimeout(function() {
+      btn.textContent = prev;
+      btn.style.color = '';
+    }, 4000);
+  }
+}
