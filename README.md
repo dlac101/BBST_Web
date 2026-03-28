@@ -12,6 +12,7 @@ Standalone prototype UI for the SmartOS BBST (Broadband Speed Test) page. Design
 - **Latency breakdown** showing idle, download, and upload latency with jitter and delta values
 - **Connection info** card with server, ISP, IP, plan rates, distance, and duration
 - **Progressive disclosure** with basic view and expandable advanced details
+- **Network Path Test** visualization showing color-coded link quality from device through satellites/router to internet, with inline SVG icons, track-and-fill speed bars, worst-link notification dot, detail panels with DL/UL and plain-English troubleshooting tips
 - **Dark and light themes** with CSS custom properties
 
 ## Screenshots
@@ -25,12 +26,21 @@ Standalone prototype UI for the SmartOS BBST (Broadband Speed Test) page. Design
 ### Light Theme
 ![Light theme variant](screenshots/05-light-theme.png)
 
+### Network Path Test
+![Path test desktop](screenshots/path-desktop-1440.png)
+![Path test mobile](screenshots/path-mobile-375.png)
+![Path test detail panel](screenshots/path-desktop-detail.png)
+
 ## File Structure
 
 ```
-index.html      Page structure (sidebar, topbar, speedtest content, shaper modal)
-styles.css      Design system (CSS variables, dark/light themes, all component styles)
-speedtest.js    Mock data, state machine, canvas rendering, animations, shaper config
+index.html              Page structure (sidebar, topbar, speedtest content, shaper modal)
+styles.css              Design system (CSS variables, dark/light themes, all component styles)
+speedtest.js            Mock data, state machine, canvas rendering, animations, shaper config
+path-test-sketch.html   Network path visualization (single-file prototype)
+preview-mobile.html     RWD preview harness: XS (375), SM (640), MD (768)
+preview-laptop.html     RWD preview harness: LG (1024)
+preview-desktop.html    RWD preview harness: XL (1920)
 ```
 
 No frameworks, no build step. Single HTML + CSS + JS.
