@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Preview: LG</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #ccc; font-family: 'Segoe UI', system-ui, sans-serif; padding: 16px; min-height: 100vh; }
+  h1 { font-size: 14px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
+  .frame-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .frame-label { font-size: 11px; font-weight: 700; color: #22d3ee; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+  .frame-label .dim { font-weight: 400; color: #555; font-size: 10px; }
+  .frame-border { border: 1px solid #222; border-radius: 6px; overflow: hidden; background: #111; display: inline-block; }
+  iframe { display: block; border: none; background: #0b0f19; }
+  .controls { display: flex; gap: 8px; margin-bottom: 16px; }
+  button { background: #1a1a2e; border: 1px solid #333; border-radius: 5px; color: #aaa; padding: 6px 14px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: #22d3ee; color: #22d3ee; }
+</style>
+</head>
+<body>
+<h1>Tab 2: Small Laptop (LG)</h1>
+<div class="controls">
+  <button onclick="reloadAll()">Reload</button>
+  <button onclick="toggleTheme('dark')">Dark</button>
+  <button onclick="toggleTheme('light')">Light</button>
+</div>
+<div class="frame-wrap">
+  <div class="frame-label">lg - Small Laptop <span class="dim">1024 x 768</span></div>
+  <div class="frame-border"><iframe src="path-test-sketch.html" width="1024" height="768"></iframe></div>
+</div>
+<script>
+function reloadAll() { document.querySelectorAll('iframe').forEach(f => { f.src = f.src.split('?')[0] + '?t=' + Date.now(); }); }
+function toggleTheme(t) { document.querySelectorAll('iframe').forEach(f => { try { f.contentDocument.documentElement.setAttribute('data-theme', t); } catch(e) { f.src = f.src.split('#')[0] + '#theme=' + t + '&t=' + Date.now(); } }); }
+</script>
+</body>
+</html>

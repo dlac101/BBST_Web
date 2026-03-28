@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>Tap Hint Mockups - Compare</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0b0f19; --bg-card: #151c2c; --bg-input: #1a2236;
+  --text-primary: #e5e7eb; --text-secondary: #9ca3af; --text-muted: #6b7280; --text-heading: #f9fafb;
+  --border: #1f2937; --border-bright: #374151;
+  --accent-cyan: #22d3ee; --accent-green: #34d399; --accent-amber: #f59e0b; --accent-red: #ef4444;
+  --accent-red-dim: rgba(239,68,68,0.10); --accent-green-dim: rgba(52,211,153,0.10);
+  --font-sans: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  --radius: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans); padding: 24px; }
+h1 { font-family: var(--font-mono); font-size: 16px; color: var(--text-heading); margin-bottom: 8px; }
+.subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.mockup {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; display: flex; flex-direction: column; gap: 12px;
+}
+.mockup-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px; }
+.mockup-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+/* Shared pipeline base */
+.pipeline { display: flex; align-items: flex-start; gap: 0; }
+.p-node { display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 2; flex-shrink: 0; min-width: 56px; }
+.p-node-icon {
+  width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--border-bright); background: var(--bg-card);
+}
+.p-node-icon.bad { border-color: var(--accent-red); box-shadow: 0 0 8px rgba(239,68,68,0.2); }
+.p-node-icon svg { width: 18px; height: 18px; stroke: var(--text-secondary); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.p-node-icon.bad svg { stroke: var(--accent-red); }
+.p-node-name { font-family: var(--font-mono); font-size: 9px; color: var(--text-secondary); white-space: nowrap; }
+
+.p-link { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 60px; padding-top: 12px; position: relative; cursor: pointer; }
+.p-link-speed { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-heading); margin-bottom: 3px; white-space: nowrap; }
+.p-link-speed .unit { font-weight: 400; font-size: 8px; color: var(--text-muted); }
+.p-link-bar { width: 100%; height: 8px; border-radius: 4px; position: relative; }
+.p-link-bar.good { background: var(--accent-green); box-shadow: 0 0 8px rgba(52,211,153,0.2); }
+.p-link-bar.poor { background: var(--accent-red); box-shadow: 0 0 8px rgba(239,68,68,0.2); }
+.p-link-bar.moderate { background: var(--accent-amber); box-shadow: 0 0 8px rgba(245,158,11,0.2); }
+.p-link-bar::after { content: ''; position: absolute; right: -3px; top: 50%; transform: translateY(-50%); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.p-link-bar.good::after { border-left: 4px solid var(--accent-green); }
+.p-link-bar.poor::after { border-left: 4px solid var(--accent-red); }
+.p-link-bar.moderate::after { border-left: 4px solid var(--accent-amber); }
+.p-link-label { font-size: 8px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; }
+
+/* SVG icons */
+.icon-laptop { }
+.icon-sat { }
+.icon-router { }
+.icon-globe { }
+
+/* ============================================================
+   VARIANT A: Ripple Pulse (radar ping from the bar)
+   ============================================================ */
+.va .p-link.worst { position: relative; }
+.va .p-link.worst .p-link-bar { z-index: 2; }
+.va .ripple-ring {
+  position: absolute;
+  top: 14px; /* align with bar center */
+  left: 50%;
+  width: 30px; height: 30px;
+  border: 2px solid var(--accent-red);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: rippleOut 2.5s ease-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.va .ripple-ring:nth-child(2) { animation-delay: 0.8s; }
+@keyframes rippleOut {
+  0% { width: 10px; height: 10px; opacity: 0.7; }
+  100% { width: 80px; height: 80px; opacity: 0; }
+}
+
+/* ============================================================
+   VARIANT B: Notification Dot
+   ============================================================ */
+.vb .p-link.worst .p-link-bar { position: relative; }
+.vb .notif-dot {
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  border: 2px solid var(--bg-card);
+  animation: dotPulse 1.5s ease-in-out infinite;
+  z-index: 3;
+}
+.vb .notif-dot::after {
+  content: '!';
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 900;
+  color: white;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+
+/* ============================================================
+   VARIANT C: Down-Chevron Bob
+   ============================================================ */
+.vc .chevron-hint {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+  animation: chevronBob 1.8s ease-in-out infinite;
+}
+.vc .chevron-hint svg {
+  width: 14px; height: 14px;
+  stroke: var(--accent-red); stroke-width: 2.5;
+  fill: none; stroke-linecap: round; stroke-linejoin: round;
+}
+@keyframes chevronBob {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(4px); opacity: 1; }
+}
+
+/* ============================================================
+   VARIANT D: Marching Ants Border
+   ============================================================ */
+.vd .p-link.worst .p-link-bar {
+  outline: 2px dashed var(--accent-red);
+  outline-offset: 3px;
+  border-radius: 4px;
+  animation: marchingAnts 0.4s linear infinite;
+}
+@keyframes marchingAnts {
+  to { outline-offset: 5px; }
+}
+/* Proper marching ants using SVG background trick */
+.vd .march-border {
+  position: absolute;
+  top: 8px; left: -4px; right: -4px;
+  height: 16px;
+  border: 2px dashed var(--accent-red);
+  border-radius: 8px;
+  opacity: 0.6;
+  animation: antsMarch 8s linear infinite;
+  pointer-events: none;
+}
+@keyframes antsMarch {
+  to { stroke-dashoffset: -100; }
+}
+/* Simplified: just a pulsing dashed outline */
+.vd .p-link.worst .p-link-bar {
+  outline: none;
+}
+.vd .dash-ring {
+  position: absolute;
+  top: 6px; left: -5px; right: -5px;
+  height: 20px;
+  border: 2px dashed rgba(239,68,68,0.5);
+  border-radius: 10px;
+  pointer-events: none;
+  animation: dashPulse 2s ease-in-out infinite;
+}
+@keyframes dashPulse {
+  0%, 100% { opacity: 0.3; border-color: rgba(239,68,68,0.3); }
+  50% { opacity: 1; border-color: rgba(239,68,68,0.8); }
+}
+
+/* ============================================================
+   VARIANT E: Ripple + Dot Combo (recommended)
+   ============================================================ */
+.ve .p-link.worst { position: relative; }
+.ve .p-link.worst .p-link-bar { z-index: 2; position: relative; }
+.ve .combo-dot {
+  position: absolute;
+  top: -4px; right: -4px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  border: 2px solid var(--bg-card);
+  z-index: 4;
+  animation: dotPulseE 2s ease-in-out infinite;
+}
+@keyframes dotPulseE {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+.ve .combo-ripple {
+  position: absolute;
+  top: 16px; left: 50%;
+  width: 20px; height: 20px;
+  border: 1.5px solid var(--accent-red);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: rippleE 3s ease-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.ve .combo-ripple.r2 { animation-delay: 1s; }
+.ve .combo-ripple.r3 { animation-delay: 2s; }
+@keyframes rippleE {
+  0% { width: 8px; height: 8px; opacity: 0.6; }
+  80% { width: 70px; height: 70px; opacity: 0; }
+  100% { width: 70px; height: 70px; opacity: 0; }
+}
+/* Subtle glow pulse on the bar itself */
+.ve .p-link.worst .p-link-bar.poor {
+  animation: barGlowE 2.5s ease-in-out infinite;
+}
+@keyframes barGlowE {
+  0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.25); }
+  50% { box-shadow: 0 0 20px rgba(239,68,68,0.5), 0 0 40px rgba(239,68,68,0.15); }
+}
+
+</style>
+</head>
+<body>
+
+<h1>Worst-Link Hint: 5 Variants</h1>
+<p class="subtitle">Each pipeline shows the same "Problem Network" path. The first link (85 Mbps, red) is the worst. Compare how each variant draws attention to it.</p>
+
+<div class="grid">
+
+<!-- VARIANT A: Ripple Pulse -->
+<div class="mockup va">
+  <div class="mockup-title">A: Ripple Pulse</div>
+  <div class="mockup-desc">Circular radar pings emanate from the worst bar every few seconds. Eye-catching, conveys urgency. Fades outward so it doesn't obscure other elements.</div>
+  <div class="pipeline">
+    <div class="p-node"><div class="p-node-icon bad"><svg viewBox="0 0 24 24"><path d="M3.5 14V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9"/><path d="M1.5 17.5a1 1 0 0 1 1-1h19a1 1 0 0 1 1 1v0a1.5 1.5 0 0 1-1.5 1.5h-18A1.5 1.5 0 0 1 1.5 17.5z"/></svg></div><div class="p-node-name">MacBook</div></div>
+    <div class="p-link worst">
+      <div class="ripple-ring"></div><div class="ripple-ring"></div>
+      <div class="p-link-speed">85 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar poor"></div>
+      <div class="p-link-label">Wi-Fi</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="19" r="2" fill="currentColor" stroke="none"/><path d="M5 16a9.5 9.5 0 0 1 14 0"/><path d="M2.5 12.5a14 14 0 0 1 19 0"/></svg></div><div class="p-node-name">Living Rm</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">420 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar moderate"></div>
+      <div class="p-link-label">Backhaul</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><rect x="2" y="12" width="20" height="7" rx="1.5"/><circle cx="6" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="15.5" r="1" fill="currentColor" stroke="none"/><path d="M8 5v7"/><path d="M16 3v9"/></svg></div><div class="p-node-name">Router</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">932 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar good"></div>
+      <div class="p-link-label">Internet</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4.5" ry="10"/><path d="M2 12h20"/></svg></div><div class="p-node-name">Internet</div></div>
+  </div>
+</div>
+
+<!-- VARIANT B: Notification Dot -->
+<div class="mockup vb">
+  <div class="mockup-title">B: Notification Dot</div>
+  <div class="mockup-desc">Small red "!" badge on the bar, like an app notification. Pulsing scale effect. Minimal, universally understood "attention here" signal.</div>
+  <div class="pipeline">
+    <div class="p-node"><div class="p-node-icon bad"><svg viewBox="0 0 24 24"><path d="M3.5 14V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9"/><path d="M1.5 17.5a1 1 0 0 1 1-1h19a1 1 0 0 1 1 1v0a1.5 1.5 0 0 1-1.5 1.5h-18A1.5 1.5 0 0 1 1.5 17.5z"/></svg></div><div class="p-node-name">MacBook</div></div>
+    <div class="p-link worst">
+      <div class="p-link-speed">85 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar poor"><div class="notif-dot"></div></div>
+      <div class="p-link-label">Wi-Fi</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="19" r="2" fill="currentColor" stroke="none"/><path d="M5 16a9.5 9.5 0 0 1 14 0"/><path d="M2.5 12.5a14 14 0 0 1 19 0"/></svg></div><div class="p-node-name">Living Rm</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">420 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar moderate"></div>
+      <div class="p-link-label">Backhaul</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><rect x="2" y="12" width="20" height="7" rx="1.5"/><circle cx="6" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="15.5" r="1" fill="currentColor" stroke="none"/><path d="M8 5v7"/><path d="M16 3v9"/></svg></div><div class="p-node-name">Router</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">932 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar good"></div>
+      <div class="p-link-label">Internet</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4.5" ry="10"/><path d="M2 12h20"/></svg></div><div class="p-node-name">Internet</div></div>
+  </div>
+</div>
+
+<!-- VARIANT C: Down-Chevron Bob -->
+<div class="mockup vc">
+  <div class="mockup-title">C: Down-Chevron Bob</div>
+  <div class="mockup-desc">Small downward chevron below the worst bar bobs gently, implying "expand here." Restrained, directional, clearly indicates the action.</div>
+  <div class="pipeline">
+    <div class="p-node"><div class="p-node-icon bad"><svg viewBox="0 0 24 24"><path d="M3.5 14V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9"/><path d="M1.5 17.5a1 1 0 0 1 1-1h19a1 1 0 0 1 1 1v0a1.5 1.5 0 0 1-1.5 1.5h-18A1.5 1.5 0 0 1 1.5 17.5z"/></svg></div><div class="p-node-name">MacBook</div></div>
+    <div class="p-link worst">
+      <div class="p-link-speed">85 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar poor"></div>
+      <div class="p-link-label">Wi-Fi</div>
+      <div class="chevron-hint"><svg viewBox="0 0 24 24"><polyline points="7 10 12 15 17 10"/></svg></div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="19" r="2" fill="currentColor" stroke="none"/><path d="M5 16a9.5 9.5 0 0 1 14 0"/><path d="M2.5 12.5a14 14 0 0 1 19 0"/></svg></div><div class="p-node-name">Living Rm</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">420 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar moderate"></div>
+      <div class="p-link-label">Backhaul</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><rect x="2" y="12" width="20" height="7" rx="1.5"/><circle cx="6" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="15.5" r="1" fill="currentColor" stroke="none"/><path d="M8 5v7"/><path d="M16 3v9"/></svg></div><div class="p-node-name">Router</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">932 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar good"></div>
+      <div class="p-link-label">Internet</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4.5" ry="10"/><path d="M2 12h20"/></svg></div><div class="p-node-name">Internet</div></div>
+  </div>
+</div>
+
+<!-- VARIANT D: Dashed Outline Pulse -->
+<div class="mockup vd">
+  <div class="mockup-title">D: Dashed Outline Pulse</div>
+  <div class="mockup-desc">Pulsing dashed border around the worst bar. Familiar "selected/actionable" pattern from image editors. Gentle opacity pulse keeps it visible without being distracting.</div>
+  <div class="pipeline">
+    <div class="p-node"><div class="p-node-icon bad"><svg viewBox="0 0 24 24"><path d="M3.5 14V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9"/><path d="M1.5 17.5a1 1 0 0 1 1-1h19a1 1 0 0 1 1 1v0a1.5 1.5 0 0 1-1.5 1.5h-18A1.5 1.5 0 0 1 1.5 17.5z"/></svg></div><div class="p-node-name">MacBook</div></div>
+    <div class="p-link worst">
+      <div class="p-link-speed">85 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar poor" style="position:relative;"><div class="dash-ring"></div></div>
+      <div class="p-link-label">Wi-Fi</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="19" r="2" fill="currentColor" stroke="none"/><path d="M5 16a9.5 9.5 0 0 1 14 0"/><path d="M2.5 12.5a14 14 0 0 1 19 0"/></svg></div><div class="p-node-name">Living Rm</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">420 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar moderate"></div>
+      <div class="p-link-label">Backhaul</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><rect x="2" y="12" width="20" height="7" rx="1.5"/><circle cx="6" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="15.5" r="1" fill="currentColor" stroke="none"/><path d="M8 5v7"/><path d="M16 3v9"/></svg></div><div class="p-node-name">Router</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">932 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar good"></div>
+      <div class="p-link-label">Internet</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4.5" ry="10"/><path d="M2 12h20"/></svg></div><div class="p-node-name">Internet</div></div>
+  </div>
+</div>
+
+<!-- VARIANT E: Ripple + Dot Combo -->
+<div class="mockup ve">
+  <div class="mockup-title">E: Ripple + Dot Combo</div>
+  <div class="mockup-desc">Red notification dot on the bar plus subtle ripple rings expanding outward, plus a glow pulse on the bar itself. Maximum attention without text. My recommendation.</div>
+  <div class="pipeline">
+    <div class="p-node"><div class="p-node-icon bad"><svg viewBox="0 0 24 24"><path d="M3.5 14V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9"/><path d="M1.5 17.5a1 1 0 0 1 1-1h19a1 1 0 0 1 1 1v0a1.5 1.5 0 0 1-1.5 1.5h-18A1.5 1.5 0 0 1 1.5 17.5z"/></svg></div><div class="p-node-name">MacBook</div></div>
+    <div class="p-link worst">
+      <div class="combo-ripple"></div><div class="combo-ripple r2"></div><div class="combo-ripple r3"></div>
+      <div class="p-link-speed">85 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar poor"><div class="combo-dot"></div></div>
+      <div class="p-link-label">Wi-Fi</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="19" r="2" fill="currentColor" stroke="none"/><path d="M5 16a9.5 9.5 0 0 1 14 0"/><path d="M2.5 12.5a14 14 0 0 1 19 0"/></svg></div><div class="p-node-name">Living Rm</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">420 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar moderate"></div>
+      <div class="p-link-label">Backhaul</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><rect x="2" y="12" width="20" height="7" rx="1.5"/><circle cx="6" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="15.5" r="1" fill="currentColor" stroke="none"/><path d="M8 5v7"/><path d="M16 3v9"/></svg></div><div class="p-node-name">Router</div></div>
+    <div class="p-link">
+      <div class="p-link-speed">932 <span class="unit">Mbps</span></div>
+      <div class="p-link-bar good"></div>
+      <div class="p-link-label">Internet</div>
+    </div>
+    <div class="p-node"><div class="p-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4.5" ry="10"/><path d="M2 12h20"/></svg></div><div class="p-node-name">Internet</div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
